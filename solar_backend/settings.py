@@ -121,10 +121,10 @@ if DEPLOYMENT:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "HOST": "10.76.48.3",
-            "NAME": "postgres",
-            "USER": "zafytody",
-            "PASSWORD": "zafytody",
+            "HOST": "postgres.railway.internal",
+            "NAME": "railway",
+            "USER": "postgres",
+            "PASSWORD": "nsCHfqdBoLeZQglipEGjiHycAbOoocWO",
             "PORT": 5432,
         }
     }

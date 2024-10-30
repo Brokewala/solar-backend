@@ -15,7 +15,7 @@ load_dotenv()
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-517me7l6)qts)dk@or&cs*sj-wm38p!8p918&k7g9kktdav#i5"
 # DEPLOYMENT = ast.literal_eval(os.getenv("DEPLOYMENT", "False"))
-DEPLOYMENT = True
+DEPLOYMENT = False
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -40,12 +40,12 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "django_filters",
     'users',
-    # 'module',
+    'module',
     # 'battery',
     # 'panneau',
     # 'prise',
     # 'report',
-    # 'rating',
+    'rating',
     # 'subcription',
     # 'notification',
 ]
@@ -191,7 +191,7 @@ CORS_ALLOW_HEADERS = (
 )
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-
+    "http://localhost:4200",
 ]
 # # send email setup
 # EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

@@ -6,6 +6,8 @@ from django.contrib import admin
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/solar/users/', include("users.urls")),
+    path('api/solar/modules/', include("module.urls")),
+    path('api/solar/rating/', include("rating.urls")),
 
 ]
 

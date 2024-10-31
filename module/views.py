@@ -34,7 +34,7 @@ def get_all_module(request):
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_module_by_user(request, user_id):
-    modules = Modules.objects.get(user=user_id)
+    modules = Modules.objects.get(user__id=user_id)
     serializer = ModulesSerializer(modules, many=False)
     return Response(serializer.data, status=status.HTTP_200_OK)
 

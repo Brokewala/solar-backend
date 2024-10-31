@@ -8,6 +8,7 @@ urlpatterns = [
     path('api/solar/users/', include("users.urls")),
     path('api/solar/modules/', include("module.urls")),
     path('api/solar/rating/', include("rating.urls")),
+    path('api/solar/battery/', include("battery.urls")),
 
 ]
 

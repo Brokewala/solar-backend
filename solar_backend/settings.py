@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     "django_filters",
     'users',
     'module',
-    # 'battery',
+    'battery',
     # 'panneau',
     # 'prise',
     # 'report',

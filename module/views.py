@@ -52,7 +52,7 @@ class ModulesAPIView(APIView):
             )
 
     def post(self, request):
-        gr_code = request.data.get("gr_code")
+        gr_code = request.FILES.get("gr_code")
         name = request.data.get("name")
         identifiant = request.data.get("identifiant")
         password = request.data.get("password")
@@ -92,7 +92,7 @@ class ModulesAPIView(APIView):
     def put(self, request, module_id):
         module = self.get_object(module_id=module_id)
         # variables
-        gr_code = request.data.get("gr_code")
+        gr_code = request.FILES.get("gr_code")
         name = request.data.get("name")
         identifiant = request.data.get("identifiant")
         password = request.data.get("password")

@@ -14,19 +14,24 @@ from django.shortcuts import get_object_or_404
 from .models import Battery
 from .models import BatteryData
 from .models import BatteryPlanning
+from .models import BatteryRelaiState
+from .models import BatteryReference
 from module.models import Modules
 
 # serailizer
 from .serializers import BatterySerializer
 from .serializers import BatteryDataSerializer
 from .serializers import BatteryPlanningSerializer
+from .serializers import BatteryReferenceSerializer
+from .serializers import BatteryRelaiStateSerializer
+from .serializers import BatteryAllSerializer
 
 
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_all_battery(request):
     batttery = Battery.objects.all().order_by("-createdAt")
-    serializer = BatterySerializer(batttery, many=True)
+    serializer = BatteryAllSerializer(batttery, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -46,7 +51,7 @@ class BatteryAPIView(APIView):
             return Battery.objects.get(id=battery_id)
         except Battery.DoesNotExist:
             return Response(
-                {"error": "module not found"},
+                {"error": "panneau not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -246,7 +251,13 @@ class BatteryPlanningPIView(APIView):
         done = request.data.get("done")
         battery_id = request.data.get("battery_id")
 
-        if energie is None or date_debut is None or date_fin is None or done is None:
+        if (
+            energie is None
+            or date_debut is None
+            or date_fin is None
+            or done is None
+            or battery_id is None
+        ):
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -306,5 +317,200 @@ class BatteryPlanningPIView(APIView):
         battery.delete()
         return Response(
             {"message": "battery planning is deleted"},
+            status=status.HTTP_204_NO_CONTENT,
+        )
+
+
+# BatteryRelaiState BatteryRelaiStateSerializer
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def get_one_batteryrelaistate_by_battery(request, battery_id):
+    battery_data = BatteryRelaiState.objects.filter(battery__id=battery_id)
+    serializer = BatteryRelaiStateSerializer(battery_data, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+#  BatteryRelaiState APIView
+class BatteryRelaiStateAPIView(APIView):
+
+    def get_object(self, battery_relai_id):
+        try:
+            return BatteryRelaiState.objects.get(id=battery_relai_id)
+        except BatteryRelaiState.DoesNotExist:
+            return Response(
+                {"error": " Battery Relai State Info not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    def post(self, request):
+        active = request.data.get("active")
+        state = request.data.get("state")
+        couleur = request.data.get("couleur")
+        valeur = request.data.get("valeur")
+        battery_id = request.data.get("battery_id")
+
+        if (
+            active is None
+            or state is None
+            or couleur is None
+            or valeur is None
+            or battery_id is None
+        ):
+            return Response(
+                {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        # get battery
+        battery = get_object_or_404(Battery, id=battery_id)
+
+        battery_data = BatteryRelaiState.objects.create(
+            active=active,
+            battery=battery,
+            state=state,
+            couleur=couleur,
+            valeur=valeur,
+        )
+        # save into database
+        battery_data.save()
+        serializer = BatteryRelaiStateSerializer(battery_data, many=False)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def get(self, request, battery_relai_id):
+        battery_data = self.get_object(battery_relai_id=battery_relai_id)
+        serializer = BatteryRelaiStateSerializer(battery_data, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, battery_relai_id):
+        battery_data = self.get_object(battery_relai_id=battery_relai_id)
+        # variables
+        active = request.data.get("active")
+        state = request.data.get("state")
+        couleur = request.data.get("couleur")
+        valeur = request.data.get("valeur")
+
+        #  active
+        if active:
+            battery_data.active = active
+            battery_data.save()
+
+        #  state
+        if state:
+            battery_data.state = state
+            battery_data.save()
+
+        #  couleur
+        if couleur:
+            battery_data.couleur = couleur
+            battery_data.save()
+
+        #  valeur
+        if valeur:
+            battery_data.valeur = valeur
+            battery_data.save()
+
+        serializer = BatteryRelaiStateSerializer(battery_data, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, battery_relai_id):
+        battery = self.get_object(battery_relai_id=battery_relai_id)
+        battery.delete()
+        return Response(
+            {"message": "battery planning is deleted"},
+            status=status.HTTP_204_NO_CONTENT,
+        )
+
+
+# BatteryReference  BatteryReferenceSerializer
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def get_one_batteryreference_by_battery(request, battery_id):
+    battery_data = BatteryReference.objects.filter(battery__id=battery_id)
+    serializer = BatteryReferenceSerializer(battery_data, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class BatteryReferenceAPIView(APIView):
+
+    def get_object(self, battery_reference_id):
+        try:
+            return BatteryReference.objects.get(id=battery_reference_id)
+        except BatteryReference.DoesNotExist:
+            return Response(
+                {"error": " Battery reference Info not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    def post(self, request):
+        checked_data = request.data.get("checked_data")
+        checked_state = request.data.get("checked_state")
+        duration = request.data.get("duration")
+        energy = request.data.get("energy")
+        battery_id = request.data.get("battery_id")
+
+        if (
+            checked_data is None
+            or checked_state is None
+            or duration is None
+            or energy is None
+            or battery_id is None
+        ):
+            return Response(
+                {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        # get battery
+        battery = get_object_or_404(Battery, id=battery_id)
+
+        battery_data = BatteryReference.objects.create(
+            checked_data=checked_data,
+            battery=battery,
+            checked_state=checked_state,
+            duration=duration,
+            energy=energy,
+        )
+        # save into database
+        battery_data.save()
+        serializer = BatteryReferenceSerializer(battery_data, many=False)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def get(self, request, battery_reference_id):
+        battery_data = self.get_object(battery_reference_id=battery_reference_id)
+        serializer = BatteryReferenceSerializer(battery_data, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, battery_reference_id):
+        battery_data = self.get_object(battery_reference_id=battery_reference_id)
+        # variables
+        checked_data = request.data.get("checked_data")
+        checked_state = request.data.get("checked_state")
+        duration = request.data.get("duration")
+        energy = request.data.get("energy")
+
+        #  energie
+        if checked_data:
+            battery_data.checked_data = checked_data
+            battery_data.save()
+
+        #  checked_state
+        if checked_state:
+            battery_data.checked_state = checked_state
+            battery_data.save()
+
+        #  duration
+        if duration:
+            battery_data.duration = duration
+            battery_data.save()
+
+        #  energy
+        if energy:
+            battery_data.energy = energy
+            battery_data.save()
+
+        serializer = BatteryReferenceSerializer(battery_data, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, battery_reference_id):
+        battery = self.get_object(battery_reference_id=battery_reference_id)
+        battery.delete()
+        return Response(
+            {"message": "battery reference is deleted"},
             status=status.HTTP_204_NO_CONTENT,
         )

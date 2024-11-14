@@ -9,6 +9,10 @@ urlpatterns = [
     path('api/solar/modules/', include("module.urls")),
     path('api/solar/rating/', include("rating.urls")),
     path('api/solar/battery/', include("battery.urls")),
+    path('api/solar/panneau/', include("panneau.urls")),
+    path('api/solar/prise/', include("prise.urls")),
+    path('api/solar/report/', include("report.urls")),
+    path('api/solar/subscription/', include("subscription.urls")),
 
 ]
 

@@ -2,6 +2,9 @@ import uuid
 from django.db import models
 from users.models import ProfilUser
 
+def upload_to(instance, filename):
+    return "modules/{filename}".format(filename=filename)
+
 
 # Create your models here.
 class Modules(models.Model):
@@ -15,7 +18,12 @@ class Modules(models.Model):
         null=True,
         related_name="module_user",
     )
-    gr_code = models.CharField(max_length=200, null=True, blank=True)
+    gr_code = models.ImageField(
+        upload_to=upload_to,
+        blank=True,
+        null=True,
+        default="grcode.jpg",
+    )
     name = models.CharField(max_length=200)
     identifiant = models.CharField(max_length=200)
     password = models.CharField(max_length=200)

@@ -10,7 +10,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.views import TokenObtainPairView
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.decorators import permission_classes
-
+from jwt.exceptions import ExpiredSignatureError
 # from rest_framework_simplejwt.tokens import RefreshToken
 # from django.db import transaction
 
@@ -60,6 +60,43 @@ def decode_token(request):
         return Response(
             {"error": "error decoding token"}, status=status.HTTP_401_UNAUTHORIZED
         )
+
+
+# user by token
+@api_view(["POST"])
+def user_by_token(request):
+    # if is none
+    if request.data.get("token") is None:
+        return Response(
+            {"error": "token does not exist"}, status=status.HTTP_404_NOT_FOUND
+        )
+    # decode token
+    try:
+        decoded_token = jwt.decode(
+            request.data.get("token"), settings.SECRET_KEY, algorithms=["HS256"]
+        )
+    except ExpiredSignatureError:  # Capturer l'exception ExpiredSignatureError
+        return Response(
+            {"error": "Token has expired"}, status=status.HTTP_401_UNAUTHORIZED
+        )
+    except jwt.exceptions.DecodeError:
+        return Response(
+            {"error": "user does not exists"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    user_id = decoded_token["user_id"]
+
+    # get user
+    try:
+        user = ProfilUser.objects.get(id=user_id)
+    except ProfilUser.DoesNotExist:
+        return Response(
+            {"error": "user does not exists"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    # searilise 
+    serializer = ProfilUserSerializer(user, many=False)
+    return Response(serializer.data,status=status.HTTP_200_OK)
 
 
 # refresh token view
@@ -142,6 +179,17 @@ def get_all_admin(request):
     try:
         # Récupérer l'utilisateur depuis la base de données avec only
         user = ProfilUser.objects.filter(is_superuser=True)
+    except ProfilUser.DoesNotExist:
+        return Response({"error": "Users not found"}, status=status.HTTP_404_NOT_FOUND)
+    serializer = ProfilUserSerializer(user, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def get_all_customers(request):
+    try:
+        # Récupérer l'utilisateur depuis la base de données avec only
+        user = ProfilUser.objects.filter(role="customer").order_by("-createdAt")
     except ProfilUser.DoesNotExist:
         return Response({"error": "Users not found"}, status=status.HTTP_404_NOT_FOUND)
     serializer = ProfilUserSerializer(user, many=True)

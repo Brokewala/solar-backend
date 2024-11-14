@@ -42,11 +42,11 @@ INSTALLED_APPS = [
     'users',
     'module',
     'battery',
-    # 'panneau',
-    # 'prise',
-    # 'report',
+    'panneau',
+    'prise',
     'rating',
-    # 'subcription',
+    'report',
+    'subscription',
     # 'notification',
 ]
 
@@ -192,6 +192,7 @@ CORS_ALLOW_HEADERS = (
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:4200",
+    "http://localhost:5173",
 ]
 # # send email setup
 # EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

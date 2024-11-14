@@ -15,6 +15,8 @@ urlpatterns = [
     path("decodeToken", views.decode_token),
     path("refresh", views.CustomTokenRefreshView.as_view()),
     path("login", views.CustomTokenObtainPairView.as_view()),
+    path("info", views.user_by_token, name="user_by_token"),
+    path("customers", views.get_all_customers),
     # # Admin
     path("signup-admin", views.create_admin_of_user),
     path("admin-all", views.get_all_admin),

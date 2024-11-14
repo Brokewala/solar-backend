@@ -53,3 +53,39 @@ class BatteryPlanning(models.Model):
     done = models.BooleanField(default=False)
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
+
+
+# batterie_ relai_state
+class BatteryRelaiState(models.Model):
+    id = models.CharField(
+        primary_key=True, default=uuid.uuid4, editable=False, max_length=36
+    )
+    battery = models.ForeignKey(
+        Battery,
+        on_delete=models.CASCADE,
+        related_name="battery_relai_state",
+    )
+    active = models.BooleanField(default=False)
+    state = models.CharField(max_length=100, null=True, blank=True)
+    couleur = models.CharField(max_length=100, null=True, blank=True)
+    valeur = models.CharField(max_length=100, null=True, blank=True)
+    createdAt = models.DateTimeField(auto_now_add=True)
+    updatedAt = models.DateTimeField(auto_now=True)
+
+
+# reference_battery
+class BatteryReference(models.Model):
+    id = models.CharField(
+        primary_key=True, default=uuid.uuid4, editable=False, max_length=36
+    )
+    battery = models.ForeignKey(
+        Battery,
+        on_delete=models.CASCADE,
+        related_name="battery_reference",
+    )
+    checked_data = models.BooleanField(default=False)
+    checked_state = models.BooleanField(default=False)
+    duration = models.CharField(max_length=100, null=True, blank=True)
+    energy = models.CharField(max_length=100, null=True, blank=True)
+    createdAt = models.DateTimeField(auto_now_add=True)
+    updatedAt = models.DateTimeField(auto_now=True)

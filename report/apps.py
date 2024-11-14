@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class RepotConfig(AppConfig):
+class ReportConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'repot'
+    name = 'report'

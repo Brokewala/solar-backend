@@ -21,4 +21,24 @@ urlpatterns = [
         "battery-planning/<str:battery_id>/battery",
         views.get_one_batteryplanning_by_battery,
     ),
+    # relai state
+    path("battery-relaistate", views.BatteryRelaiStateAPIView.as_view()),
+    path(
+        "battery-relaistate/<str:battery_relai_id>",
+        views.BatteryRelaiStateAPIView.as_view(),
+    ),
+    path(
+        "battery-relaistate/<str:battery_id>/battery",
+        views.get_one_batteryrelaistate_by_battery,
+    ),
+    # referance
+     path("battery-reference", views.BatteryReferenceAPIView.as_view()),
+    path(
+        "battery-reference/<str:battery_reference_id>",
+        views.BatteryReferenceAPIView.as_view(),
+    ),
+    path(
+        "battery-reference/<str:battery_id>/battery",
+        views.get_one_batteryreference_by_battery,
+    ),
 ]

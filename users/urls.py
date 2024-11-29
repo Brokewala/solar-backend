@@ -12,6 +12,7 @@ router.register(r"user", views.ProfilUserModelViewSet)
 urlpatterns = [
     path("", include(router.urls)),
     # auth
+    path("test", views.teste_email),
     path("decodeToken", views.decode_token),
     path("refresh", views.CustomTokenRefreshView.as_view()),
     path("login", views.CustomTokenObtainPairView.as_view()),

@@ -35,6 +35,12 @@ def send_email_notification(email_content, email, titre):
     Util.send_email(content)
 
 
+@api_view(["GET"])
+def teste_email(request):
+   send_email_notification("salut",'brokewala@gmail.com',"teste salut")
+   return Response({"message": "Email sent successfully"})
+
+
 @api_view(["POST"])
 # @permission_classes([IsAuthenticated])
 def decode_token(request):

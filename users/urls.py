@@ -22,5 +22,10 @@ urlpatterns = [
     path("admin-all", views.get_all_admin),
     # user
     path("signup", views.UsersAPIView.as_view()),
+    # signup-code
+    path("signup-with-code", views.signup_user_with_code_in_email),
+    path("signup/<str:user_id>", views.get_user_code_with_user_id),
+    path("signup-verify-code", views.verify_code_of_user),
+    path("signup-resend-code", views.resend_code_of_signup),
 
 ]

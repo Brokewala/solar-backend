@@ -55,6 +55,9 @@ class PanneauPlanning(models.Model):
 
 
 # Panneau_ relai_state
+# valeur /0-1
+# state /low-high
+# couleur /vert-rouge
 class PanneauRelaiState(models.Model):
     id = models.CharField(
         primary_key=True, default=uuid.uuid4, editable=False, max_length=36

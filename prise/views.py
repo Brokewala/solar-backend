@@ -344,6 +344,13 @@ class PriseRelaiStateAPIView(APIView):
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
+        
+        if active =="true":
+            active=True
+        else:
+            active= False
+        
+        
         # get Prise
         prise = get_object_or_404(Prise, id=prise_id)
 

@@ -21,6 +21,21 @@ from .serializers import ModulesInfoSerializer
 from .serializers import ModulesDetailSerializer
 
 
+def create_module(user,name):
+  
+    # create user
+    module = Modules.objects.create(
+        name=name
+    )
+    # save into database
+    module.save()
+    #  user
+    if user:
+        user_value = get_object_or_404(ProfilUser, id=user)
+        module.user = user_value
+        module.save()
+
+
 # get all module
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
@@ -37,6 +52,7 @@ def get_one_module_by_user(request, user_id):
     modules = Modules.objects.get(user__id=user_id)
     serializer = ModulesSerializer(modules, many=False)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 # Modules APIView
@@ -57,29 +73,37 @@ class ModulesAPIView(APIView):
         identifiant = request.data.get("identifiant")
         password = request.data.get("password")
         user = request.data.get("user")
-        if name is None or identifiant is None or password is None:
+        if name is None or user is None:
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
+        
+        #  user
+        user_value = get_object_or_404(ProfilUser, id=user)
+    
         # create user
         module = Modules.objects.create(
-            name=request.data["name"],
-            identifiant=request.data["identifiant"],
-            password=request.data["password"],
+            name=name,
+            user=user_value
         )
         # save into database
         module.save()
+         #  password
+        if password:
+            module.password = password
+            module.save()
+        
+          #  identifiant
+        if identifiant:
+            module.identifiant = identifiant
+            module.save()
 
         #  gr_code
         if gr_code:
             module.gr_code = gr_code
             module.save()
 
-        #  user
-        if user:
-            user_value = get_object_or_404(ProfilUser, id=user)
-            module.user = user_value
-            module.save()
+        
 
         serializer = ModulesSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

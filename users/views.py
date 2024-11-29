@@ -1,5 +1,7 @@
 # all
 import jwt
+import random
+
 from django.conf import settings
 from rest_framework import status
 from rest_framework import viewsets
@@ -11,8 +13,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.decorators import permission_classes
 from jwt.exceptions import ExpiredSignatureError
-# from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken
 # from django.db import transaction
+from django.template.loader import render_to_string
 
 # model
 from .models import ProfilUser,UserToken
@@ -20,6 +23,16 @@ from .models import ProfilUser,UserToken
 # model
 from .serializers import CustomTokenObtainPairSerializer
 from .serializers import ProfilUserSerializer
+from solar_backend.utils import Util
+from module.views import create_module
+
+def send_email_notification(email_content, email, titre):
+    content = {
+        "email_body": email_content,
+        "to_email": email,
+        "email_subject": titre,
+    }
+    Util.send_email(content)
 
 
 @api_view(["POST"])
@@ -248,4 +261,142 @@ class UsersAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     
+# signup with code
+@api_view(["POST"])
+def signup_user_with_code_in_email(request):
+    email = request.data.get("email")
+    if ProfilUser.objects.filter(email=email).exists():
+        return Response(
+            {"error": "Email already exists"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if (
+        request.data.get("email") is None
+        or request.data.get("password") is None
+        or request.data.get("first_name") is None
+        or request.data.get("last_name") is None
+    ):
+        return Response(
+            {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # create user
+    user = ProfilUser.objects.create_user(
+        email=request.data["email"],
+        password=request.data["password"],
+        first_name=request.data["first_name"],
+        last_name=request.data["last_name"],
+        role="customer",
+    )
+    if request.data.get("code_postal"):
+        user.code_postal =request.data.get("code_postal")
     
+    if request.data.get("adresse"):
+        user.adresse =request.data.get("adresse")
+    
+    if request.data.get("phone"):
+        user.phone =request.data.get("phone")
+    
+    # save into database
+    user.save()
+    # redis
+    otp = random.randint(100000, 900000)
+    user.code = otp
+    user.save()
+    # send email
+    subject = f"Solar | Code of verification"
+    html_message = render_to_string(
+        "code.html",
+        {"otp": otp, "email": email},
+    )
+    # send
+    send_email_notification(html_message, email, subject)
+
+    
+    serializer = ProfilUserSerializer(user, many=False)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# get code of user with user id
+@api_view(["GET"])
+def get_user_code_with_user_id(request, user_id):
+    try:
+        user = ProfilUser.objects.only(
+            "id", "email", "code", "username", "first_name"
+        ).get(id=user_id)
+    except ProfilUser.DoesNotExist:
+        return Response(
+            {"error": "user does not exists"}, status=status.HTTP_404_NOT_FOUND
+        )
+    serializer = ProfilUserSerializer(user, many=False)
+    return Response(serializer.data)
+
+
+# post code of confirmation
+@api_view(["POST"])
+def verify_code_of_user(request):
+    code = request.data.get("code")
+    user_id = request.data.get("user_id")
+
+    try:
+        user = ProfilUser.objects.get(id=user_id)
+    except ProfilUser.DoesNotExist:
+        return Response(
+            {"error": "user does not exists"}, status=status.HTTP_404_NOT_FOUND
+        )
+    # verify code of user
+    if code == user.code:
+        user.status = True
+        user.save()
+        
+        # create module
+        create_module(user.id,user.first_name,user.last_name)
+
+     
+        # Envoi de la réponse
+        refresh = RefreshToken.for_user(user)
+        response_data = {
+            "access_token": str(refresh.access_token),
+            "refresh_token": str(refresh),
+            "user_id": user.id,
+            "email": user.email,
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    else:
+        return Response(
+            {"error": "your code of confirmation not correct"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@api_view(["POST"])
+# resend code of user
+def resend_code_of_signup(request):
+    user_id = request.data.get("user_id")
+    try:
+        user = ProfilUser.objects.get(id=user_id)
+    except ProfilUser.DoesNotExist:
+        return Response(
+            {"error": "user does not exists"}, status=status.HTTP_404_NOT_FOUND
+        )
+    otp = random.randint(100000, 900000)
+    user.code = otp
+    user.save()
+    # send email
+    # send email
+    subject = f"Solar | Code of verification"
+    html_message = render_to_string(
+        "code.html",
+        {"otp": otp, "email": user.email},
+    )
+    # send
+    send_email_notification(html_message, user.email, subject)
+    # return data
+    response_data = {
+        "user_id": user.id,
+        "email": user.email,
+        "code": user.code,
+    }
+    return Response(response_data)
+

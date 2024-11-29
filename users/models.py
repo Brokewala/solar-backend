@@ -45,6 +45,8 @@ class ProfilUser(AbstractBaseUser):
     phone = models.CharField(max_length=20, null=True, blank=True)
     adresse = models.CharField(max_length=50, null=True, blank=True)
     code_postal = models.CharField(max_length=100, null=True, blank=True)
+    code = models.CharField(max_length=100, null=True, blank=True)
+    status = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     createdAt = models.DateTimeField(auto_now_add=True)

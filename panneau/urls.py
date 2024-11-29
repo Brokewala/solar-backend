@@ -45,4 +45,7 @@ urlpatterns = [
         "panneau-reference/<str:panneau_id>/panneau",
         views.get_one_PanneauReference_by_panneau,
     ),
+    # =====================panneau=====================
+    path('panneau-couleur-by-module/<str:module_id>/', views.couleur_by_module, name='couleur-by-module'),
+    path('production-annuelle/<str:module_id>/', views.get_production_panneau_annuelle, name='production-annuelle'),
 ]

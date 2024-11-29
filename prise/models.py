@@ -64,9 +64,9 @@ class PriseRelaiState(models.Model):
         related_name="prise_relai_state",
     )
     active = models.BooleanField(default=False)
-    state = models.CharField(max_length=100, null=True, blank=True)
-    couleur = models.CharField(max_length=100, null=True, blank=True)
-    valeur = models.CharField(max_length=100, null=True, blank=True)
+    state = models.CharField(max_length=100,  blank=True, default="low")
+    couleur = models.CharField(max_length=100, blank=True, default="red")
+    valeur = models.CharField(max_length=100, blank=True, default=0)
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
 

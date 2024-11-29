@@ -39,4 +39,15 @@ urlpatterns = [
         "prise-reference/<str:prise_id>/prise",
         views.get_one_PriseReference_by_prise,
     ),
+    # ================mobile==========================
+    path(
+        "couleur-prise/<str:module_id>/",
+        views.get_couleur_prise_by_id_module,
+        name="couleur-prise-by-module",
+    ),
+    path(
+        "consommation-annuelle/<str:module_id>/",
+        views.get_consommation_prise_annuelle,
+        name="consommation-annuelle",
+    ),
 ]

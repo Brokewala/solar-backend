@@ -1,13 +1,20 @@
 from rest_framework import status
-
 # from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+# django
+from datetime import timedelta
+from datetime import datetime
+from django.db.models import Sum, F
+from django.db.models.functions import Coalesce
 
 
 # models
@@ -38,7 +45,7 @@ def get_all_battery(request):
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_battery_by_module(request, module_id):
-    battery = Battery.objects.get(module__id=module_id)
+    battery = Battery.objects.filter(module__id=module_id)
     serializer = BatterySerializer(battery, many=False)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -74,6 +81,7 @@ class BatteryAPIView(APIView):
             puissance=puissance,
             voltage=voltage,
             module=module_data,
+            marque=marque,
         )
         # save into database
         battery.save()
@@ -513,4 +521,204 @@ class BatteryReferenceAPIView(APIView):
         return Response(
             {"message": "battery reference is deleted"},
             status=status.HTTP_204_NO_CONTENT,
+        )
+
+# auto
+@receiver(post_save, sender=Battery)
+def create_relai_state_auto_battery(sender, instance, created, **kwargs):
+    if created:
+        # create
+        relay=BatteryRelaiState.objects.create(
+            battery= instance,
+            active= False,
+            state= "low",
+            couleur= "green",
+            valeur="0"
+        )
+        relay.save()
+
+# =============================app mobile=====================================
+# getDureeUtilisationBatterieAnuelleByIdModule
+@api_view(["GET"])
+def get_duree_utilisation_batterie_annuelle_by_id_module(request, module_id):
+    """
+    Endpoint DRF pour obtenir la durée totale d'utilisation des batteries
+    associées à un module spécifique pour l'année en cours.
+
+    :param request: Objet de requête
+    :param module_id: ID du module (passé dans l'URL)
+    :return: JSON contenant la durée totale en heures ou un message d'erreur
+    """
+    try:
+        # Vérifier si le module existe
+        module = Modules.objects.get(id=module_id)
+
+        # Récupérer l'année en cours
+        current_year = datetime.now().year
+
+        # Récupérer les batteries associées au module
+        plannings = BatteryPlanning.objects.filter(
+            battery__module=module,
+            date_debut__year=current_year,
+            date_fin__year=current_year,
+        )
+
+        # Calculer la durée totale d'utilisation en heures
+        total_duration = 0
+        for planning in plannings:
+            if planning.date_debut and planning.date_fin:
+                duration = (planning.date_fin - planning.date_debut).total_seconds() / 3600  # Conversion en heures
+                total_duration += duration
+
+        return Response(
+            {"duree_annuelle": round(total_duration, 2)},  # Retourner avec 2 décimales
+            status=status.HTTP_200_OK,
+        )
+
+    except Modules.DoesNotExist:
+        return Response(
+            {"error": "Le module avec l'ID spécifié n'existe pas."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+# getCouleurBatterieByIdModule
+@api_view(["GET"])
+def get_couleur_batterie_by_id_module(request, module_id):
+    """
+    Endpoint DRF pour obtenir les couleurs des batteries associées à un module spécifique.
+
+    :param request: Objet de requête
+    :param module_id: ID du module (passé dans l'URL)
+    :return: JSON contenant les couleurs des batteries ou un message d'erreur
+    """
+    try:
+        # Vérifier si le module existe
+        module = Modules.objects.get(id=module_id)
+
+
+        # Extraire les couleurs via BatteryRelaiState
+        relai_state = BatteryRelaiState.objects.filter(battery__module=module).first()
+        serialzier =BatteryRelaiStateSerializer(relai_state)
+        return Response(serialzier.data, status=status.HTTP_200_OK)
+
+    except Modules.DoesNotExist:
+        return Response(
+            {"error": "Le module avec l'ID spécifié n'existe pas."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": "Une erreur s'est produite.", "details": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+# listeBatterieDataByDateAndIdModule
+@api_view(["GET"])
+def liste_batterie_data_by_date_and_id_module(request, module_id,date):
+    """
+    Endpoint DRF pour récupérer les données BatteryData associées à un module spécifique,
+    filtrées par une plage de dates.
+
+    :param request: Objet de requête
+    :param module_id: ID du module (passé dans l'URL)
+    :queryparam start_date: Date de début (format 'YYYY-MM-DD')
+    :queryparam end_date: Date de fin (format 'YYYY-MM-DD')
+    :return: JSON des BatteryData ou message d'erreur
+    """
+    # start_date = request.query_params.get("start_date")
+    # end_date = request.query_params.get("end_date")
+
+    # Validation des paramètres de date
+    if not date :
+        return Response(
+            {"error": "Les paramètres 'start_date' et 'end_date' sont requis."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        # Vérification de l'existence du module
+        module = Modules.objects.get(id=module_id)
+
+        # Conversion des dates en objets datetime
+        start_date_obj = datetime.strptime(date, "%Y-%m-%d")
+        # end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+
+        # Récupérer les batteries associées au module
+        batteries = module.modules_battery.all()
+
+        # Filtrer les BatteryData par batteries et plage de dates
+        battery_data = BatteryData.objects.filter(
+            battery__in=batteries,
+            createdAt__range=(start_date_obj)
+        )
+
+        # Serializer les données
+        serialized_data = BatteryDataSerializer(battery_data, many=True).data
+
+        return Response(serialized_data, status=status.HTTP_200_OK)
+
+    except Modules.DoesNotExist:
+        return Response(
+            {"error": "Le module avec l'ID spécifié n'existe pas."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except ValueError as e:
+        return Response(
+            {"error": f"Erreur dans le format des dates : {str(e)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+# listeDureeBatterieMensuelleByIdModuleAndMonth
+@api_view(["GET"])
+def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id, month):
+    """
+    Récupère la durée d'utilisation mensuelle des batteries d'un module pour un mois donné.
+    """
+    try:
+        # Vérifier si le module existe
+        batteries = Battery.objects.filter(module_id=module_id)
+        if not batteries.exists():
+            return Response(
+                {"error": "Le module avec l'ID spécifié n'a pas de batteries associées."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Valider et convertir le mois
+        try:
+            # Vérification du format attendu pour 'month' : 'YYYY-MM'
+            date_filter = datetime.strptime(month, "%Y-%m")
+        except ValueError:
+            return Response(
+                {"error": "Le format du mois est incorrect. Utilisez 'YYYY-MM'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Filtrer les données BatteryData pour le mois donné
+        data = BatteryData.objects.filter(
+            battery__in=batteries,
+            createdAt__year=date_filter.year,
+            createdAt__month=date_filter.month,
+        )
+
+        # Calculer la durée totale (somme des valeurs pertinentes)
+        total_duration = sum(float(item.energy or 0) for item in data)
+
+        # Retourner la durée totale et les détails
+        return Response(
+            {
+                "module_id": module_id,
+                "month": month,
+                "total_duration": total_duration,
+                "details": [{"battery_id": d.battery.id, "energy": d.energy} for d in data],
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": "Une erreur s'est produite.", "details": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

@@ -19,8 +19,6 @@ class PriseSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-
-
 # PriseData
 class PriseDataSerializer(serializers.ModelSerializer):
     prise = PriseSerializer(many=False, read_only=True)

@@ -8,7 +8,9 @@ from rest_framework.decorators import api_view
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
-
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.db.models import Sum
 
 # models
 from .models import Prise
@@ -506,3 +508,65 @@ class PriseReferenceAPIView(APIView):
             {"message": "prise reference is deleted"},
             status=status.HTTP_204_NO_CONTENT,
         )
+
+# auto
+@receiver(post_save, sender=Prise)
+def create_relai_state_auto_prise(sender, instance, created, **kwargs):
+    if created:
+        # create
+        relay=PriseRelaiState.objects.create(
+            prise= instance,
+            active= False,
+            state= "low",
+            couleur= "green",
+            valeur="0"
+        )
+        relay.save()
+# ====================mobile=====================
+@api_view(["GET"])
+def get_couleur_prise_by_id_module(request, module_id):
+    """
+    Endpoint DRF pour obtenir les couleurs des prises associées à un module spécifique.
+
+    :param request: Objet de requête
+    :param module_id: ID du module (passé dans l'URL)
+    :return: JSON contenant les couleurs des prises ou un message d'erreur
+    """
+    try:
+        # Vérifier si le module existe
+        module = Modules.objects.get(id=module_id)
+
+        # Récupérer les prises associées au module et leurs couleurs via PriseRelaiState
+        prises_relai_state = PriseRelaiState.objects.filter(prise__module=module).first()
+
+        # Extraire les couleurs des prises
+        serializer = PriseRelaiStateSerializer(prises_relai_state,many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Modules.DoesNotExist:
+        return Response(
+            {"error": "Le module avec l'ID spécifié n'existe pas."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+
+@api_view(["GET"])
+def get_consommation_prise_annuelle(request,module_id):
+
+    # Validate that `module_id` is provided
+    if not module_id:
+        return Response({"detail": "Module ID is required."}, status=400)
+
+    # Filter consumption data for prises linked to the specified module
+    consommation_data = (
+        PriseData.objects.filter(prise__module_id=module_id)
+        .values('prise_id')  # Group by prise
+        .annotate(annual_consumption=Sum('consomation'))  # Calculate total consumption
+    )
+
+    # Check if any data exists
+    if not consommation_data:
+        return Response({"detail": "No consumption data found for this module."}, status=404)
+
+    return Response(consommation_data)

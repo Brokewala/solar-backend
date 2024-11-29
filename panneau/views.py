@@ -8,7 +8,9 @@ from rest_framework.decorators import api_view
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
-
+from django.db.models import Sum
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 # models
 from .models import Panneau
@@ -26,8 +28,6 @@ from .serializers import PanneauReferenceSerializer
 from .serializers import PanneauRelaiStateSerializer
 from .serializers import PenneauAllSerializer
 
-
-# view
 
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
@@ -507,3 +507,52 @@ class PanneauReferenceAPIView(APIView):
             {"message": "panneau reference is deleted"},
             status=status.HTTP_204_NO_CONTENT,
         )
+
+# auto====================
+
+# PanneauRelaiState create auto
+@receiver(post_save, sender=Panneau)
+def create_relai_state_auto_panneau(sender, instance, created, **kwargs):
+    if created:
+        # create
+        relay=PanneauRelaiState.objects.create(
+            panneau= instance,
+            active= False,
+            state= "low",
+            couleur= "green",
+            valeur="0"
+        )
+        relay.save()
+
+# ===================mobile===========================
+@api_view(["GET"])
+def couleur_by_module(request,module_id):
+    
+    # Check if module_id is provided
+    if not module_id:
+        return Response({"detail": "Module ID is required"}, status=400)
+    
+    # Filtering by module ID
+    panneaux = PanneauRelaiState.objects.filter(panneau__module_id=module_id).first()
+    serializer = PanneauRelaiStateSerializer(panneaux, many=False)    
+    return Response(serializer.data,status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def get_production_panneau_annuelle(request,module_id):
+    
+    # Check if module_id is provided
+    if not module_id:
+        return Response({"detail": "Module ID is required"}, status=400)
+    
+    # Filter PanneauData by module_id via related Panneau
+    production_data = (
+        PanneauData.objects.filter(panneau__module_id=module_id)
+        .values('panneau_id')  # Group by panneau
+        .annotate(annual_production=Sum('production'))  # Sum production
+    )
+
+    if not production_data:
+        return Response({"detail": "No production data found for this module"}, status=404)
+    
+    return Response(production_data)

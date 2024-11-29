@@ -32,7 +32,7 @@ urlpatterns = [
         views.get_one_batteryrelaistate_by_battery,
     ),
     # referance
-     path("battery-reference", views.BatteryReferenceAPIView.as_view()),
+    path("battery-reference", views.BatteryReferenceAPIView.as_view()),
     path(
         "battery-reference/<str:battery_reference_id>",
         views.BatteryReferenceAPIView.as_view(),
@@ -40,5 +40,27 @@ urlpatterns = [
     path(
         "battery-reference/<str:battery_id>/battery",
         views.get_one_batteryreference_by_battery,
+    ),
+    # api data for battery=======================
+    path(
+        "battery-duration/<str:module_id>/",
+        views.get_duree_utilisation_batterie_annuelle_by_id_module,
+        name="get_duree_utilisation_batterie_annuelle_by_id_module",
+    ),
+    path(
+        "battery-colors/<str:module_id>/",
+        views.get_couleur_batterie_by_id_module,
+        name="get_couleur_batterie_by_id_module",
+    ),
+    path(
+        "battery-data/<str:module_id>/<str:date>/",
+        views.liste_batterie_data_by_date_and_id_module,
+        name="liste_batterie_data_by_date_and_id_module",
+    ),
+    # listeDureeBatterieMensuelleByIdModuleAndMonth
+     path(
+        "battery-data-month/<str:module_id>/<str:month>/",
+        views.liste_duree_batterie_mensuelle_by_id_module_and_month,
+        name="liste_duree_batterie_mensuelle_by_id_module_and_month",
     ),
 ]

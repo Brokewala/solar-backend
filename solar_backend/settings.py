@@ -193,12 +193,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:4200",
     "http://localhost:5173",
+    "https://shimmering-compassion-production.up.railway.app"
 ]
 # # send email setup
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# EMAIL_HOST = "smtp.gmail.com"
-# EMAIL_PORT = 587
-# EMAIL_HOST_USER = "admin@steedy.app"
-# EMAIL_HOST_PASSWORD = "fafehvpujujoaugo "
-# EMAIL_USE_TLS = True
-# EMAIL_USE_SSL = False
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_HOST_USER = "admin@steedy.app"
+EMAIL_HOST_PASSWORD = "fafehvpujujoaugo "
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False

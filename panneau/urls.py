@@ -17,7 +17,7 @@ urlpatterns = [
     # PanneauPlanning
     path("panneau-planning", views.PanneauPlanningPIView.as_view()),
     path(
-        "panneau-planning/<str:panneau_data_id>", views.PanneauPlanningPIView.as_view()
+        "panneau-planning/<str:panneau_planning_id>", views.PanneauPlanningPIView.as_view()
     ),
     path(
         "panneau-planning/<str:panneau_id>/panneau",

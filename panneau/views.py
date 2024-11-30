@@ -334,7 +334,7 @@ def switch_panneauRelaiState_by_panneau(request, panneau_id):
 
     # Check if the battery exists
     panneau_value = get_object_or_404(Panneau, id=panneau_id)
-    relai_state = get_object_or_404(PanneauRelaiState, battery=panneau_value)
+    relai_state = get_object_or_404(PanneauRelaiState, panneau=panneau_value)
 
 
     # Toggle the state and associated attributes

@@ -79,7 +79,7 @@ class BatteryReference(models.Model):
     id = models.CharField(
         primary_key=True, default=uuid.uuid4, editable=False, max_length=36
     )
-    battery = models.ForeignKey(
+    battery = models.OneToOneField(
         Battery,
         on_delete=models.CASCADE,
         related_name="battery_reference",

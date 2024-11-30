@@ -218,6 +218,17 @@ def get_one_PrisePlanning_by_Prise(request, prise_id):
     serializer = PrisePlanningSerializer(prise_data, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+# plannig by module
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def get_PrisePlanning_by_module(request, module_id):
+    module_data = get_object_or_404(Modules, id=module_id)
+    prise_value = get_object_or_404(Prise, module=module_data.id)
+    prise_data = PrisePlanning.objects.filter(prise__id=prise_value.id)
+    serializer = PrisePlanningSerializer(prise_data, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 
 #  PrisePlanning PrisePlanningSerializer APIView
 class PrisePlanningPIView(APIView):
@@ -235,6 +246,7 @@ class PrisePlanningPIView(APIView):
         consomation = request.data.get("consomation")
         date_debut = request.data.get("date_debut")
         date_fin = request.data.get("date_fin")
+        date = request.data.get("date")
         done = request.data.get("done")
         prise_id = request.data.get("prise_id")
 
@@ -244,6 +256,7 @@ class PrisePlanningPIView(APIView):
             or date_fin is None
             or done is None
             or prise_id is None
+            or date is None
         ):
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
@@ -256,6 +269,7 @@ class PrisePlanningPIView(APIView):
             prise=prise,
             date_debut=date_debut,
             date_fin=date_fin,
+            date=date,
             done=done,
         )
         # save into database
@@ -275,6 +289,7 @@ class PrisePlanningPIView(APIView):
         date_debut = request.data.get("date_debut")
         date_fin = request.data.get("date_fin")
         done = request.data.get("done")
+        date = request.data.get("date")
 
         #  consomation
         if consomation:
@@ -295,6 +310,11 @@ class PrisePlanningPIView(APIView):
         if done:
             prise_data.done = done
             prise_data.save()
+        
+        #  date
+        if date:
+            prise_data.date = date
+            prise_data.save()
 
         serializer = PrisePlanningSerializer(prise_data, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -312,9 +332,46 @@ class PrisePlanningPIView(APIView):
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_PriseRelaiState_by_Prise(request, prise_id):
-    prise_data = PriseRelaiState.objects.filter(prise__id=prise_id)
-    serializer = PriseRelaiStateSerializer(prise_data, many=True)
+    prise_data = PriseRelaiState.objects.filter(prise__id=prise_id).first()
+    serializer = PriseRelaiStateSerializer(prise_data, many=False)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def switch_PriseRelaiState_by_Prise(request, prise_id):
+    if not prise_id:
+        return Response(
+            {"detail": "Prise ID is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Check if the prise exists
+    prise = get_object_or_404(Prise, id=prise_id)
+    relai_state = get_object_or_404(PriseRelaiState, prise=prise)
+
+
+    # Toggle the state and associated attributes
+    if relai_state.active:
+        # Set to inactive state
+        relai_state.active = False
+        relai_state.state = "low"
+        relai_state.couleur = "red"
+        relai_state.valeur = "0"
+    else:
+        # Set to active state
+        relai_state.active = True
+        relai_state.state = "high"
+        relai_state.couleur = "green"
+        relai_state.valeur = "1"
+
+    # Save the updated state
+    relai_state.save()
+    serializer = PriseRelaiStateSerializer(relai_state, many=False)
+
+    # Return the new state
+    return Response(serializer.data,
+        status=status.HTTP_200_OK,
+    )
 
 
 #  PriseRelaiState APIView

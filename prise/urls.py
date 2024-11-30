@@ -19,6 +19,10 @@ urlpatterns = [
         "prise-planning/<str:prise_id>/prise",
         views.get_one_PrisePlanning_by_Prise,
     ),
+    path(
+        "prise-planning/<str:module_id>/module",
+        views.get_PrisePlanning_by_module,
+    ),
     # priseRelaiState
     path("prise-relaistate", views.PriseRelaiStateAPIView.as_view()),
     path(
@@ -28,6 +32,10 @@ urlpatterns = [
     path(
         "prise-relaistate/<str:prise_id>/prise",
         views.get_one_PriseRelaiState_by_Prise,
+    ),
+    path(
+        "prise-relaistate/<str:prise_id>/switch",
+        views.switch_PriseRelaiState_by_Prise,
     ),
     # priseReference
     path("prise-reference", views.PriseReferenceAPIView.as_view()),

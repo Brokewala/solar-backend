@@ -34,6 +34,10 @@ urlpatterns = [
         "panneau-relaistate/<str:panneau_id>/panneau",
         views.get_one_PanneauRelaiState_by_panneau,
     ),
+     path(
+        "panneau-relaistate/<str:panneau_id>/switch",
+        views.switch_panneauRelaiState_by_panneau,
+    ),
     
     # PanneauReference
     path("panneau-reference", views.PanneauReferenceAPIView.as_view()),

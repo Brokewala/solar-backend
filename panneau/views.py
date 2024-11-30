@@ -323,6 +323,45 @@ def get_one_PanneauRelaiState_by_panneau(request, panneau_id):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def switch_panneauRelaiState_by_panneau(request, panneau_id):
+    if not panneau_id:
+        return Response(
+            {"detail": "panneau ID is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Check if the battery exists
+    panneau_value = get_object_or_404(Panneau, id=panneau_id)
+    relai_state = get_object_or_404(PanneauRelaiState, battery=panneau_value)
+
+
+    # Toggle the state and associated attributes
+    if relai_state.active:
+        # Set to inactive state
+        relai_state.active = False
+        relai_state.state = "low"
+        relai_state.couleur = "red"
+        relai_state.valeur = "0"
+    else:
+        # Set to active state
+        relai_state.active = True
+        relai_state.state = "high"
+        relai_state.couleur = "green"
+        relai_state.valeur = "1"
+
+    # Save the updated state
+    relai_state.save()
+    serializer = PanneauRelaiStateSerializer(relai_state, many=False)
+
+    # Return the new state
+    return Response(serializer.data,
+        status=status.HTTP_200_OK,
+    )
+
+
+
 #  PanneauRelaiState APIView
 class PanneauRelaiStateAPIView(APIView):
 

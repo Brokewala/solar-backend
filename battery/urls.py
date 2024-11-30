@@ -15,11 +15,15 @@ urlpatterns = [
     # battery planning
     path("battery-planning", views.BatteryPlanningPIView.as_view()),
     path(
-        "battery-planning/<str:battery_data_id>", views.BatteryPlanningPIView.as_view()
+        "battery-planning/<str:battery_planning_id>", views.BatteryPlanningPIView.as_view()
     ),
     path(
         "battery-planning/<str:battery_id>/battery",
-        views.get_one_batteryplanning_by_battery,
+        views.get_batteryplanning_by_battery,
+    ),
+     path(
+        "battery-planning/<str:module_id>/module",
+        views.get_BatteryPlanning_by_module,
     ),
     # relai state
     path("battery-relaistate", views.BatteryRelaiStateAPIView.as_view()),
@@ -30,6 +34,10 @@ urlpatterns = [
     path(
         "battery-relaistate/<str:battery_id>/battery",
         views.get_one_batteryrelaistate_by_battery,
+    ),
+    path(
+        "battery-relaistate/<str:battery_id>/switch",
+        views.switch_batteryRelaiState_by_battery,
     ),
     # referance
     path("battery-reference", views.BatteryReferenceAPIView.as_view()),

@@ -48,8 +48,9 @@ class BatteryPlanning(models.Model):
         related_name="battery_planning",
     )
     energie = models.CharField(max_length=100, null=True, blank=True)
-    date_debut = models.DateTimeField(null=True, blank=True)
-    date_fin = models.DateTimeField(null=True, blank=True)
+    date_debut = models.TimeField(null=True, blank=True)
+    date_fin = models.TimeField(null=True, blank=True)
+    date = models.DateTimeField(null=True, blank=True)
     done = models.BooleanField(default=False)
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)

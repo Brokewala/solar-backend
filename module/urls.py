@@ -5,7 +5,7 @@ from module import views
 urlpatterns = [
     # module
     path("all", views.get_all_module),
-    path("module/<str:user_id>", views.get_one_module_by_user),
+    path("modules/<str:user_id>/user", views.get_one_module_by_user),
     path("modules", views.ModulesAPIView.as_view()),
     path("modules/<str:module_id>", views.ModulesAPIView.as_view()),
     # module info

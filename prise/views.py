@@ -10,8 +10,10 @@ from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.db.models import Sum
-
+from django.db.models import Sum, F, FloatField
+from django.db.models.functions import ExtractMonth
+from django.db.models.functions import Cast
+from datetime import datetime
 # models
 from .models import Prise
 from .models import PriseData
@@ -615,15 +617,51 @@ def get_consommation_prise_annuelle(request,module_id):
     if not module_id:
         return Response({"detail": "Module ID is required."}, status=400)
 
-    # Filter consumption data for prises linked to the specified module
-    consommation_data = (
-        PriseData.objects.filter(prise__module_id=module_id)
-        .values('prise_id')  # Group by prise
-        .annotate(annual_consumption=Sum('consomation'))  # Calculate total consumption
-    )
+    try:
+        # Récupérer la prise correspondante
+        module = get_object_or_404(Modules, id=module_id)
+        prise = get_object_or_404(Prise, module=module)
+        
+        # Année en cours
+        current_year = datetime.now().year
 
-    # Check if any data exists
-    if not consommation_data:
-        return Response({"detail": "No consumption data found for this module."}, status=404)
+        # Récupérer et regrouper les données par mois
+        monthly_data = (
+            PriseData.objects.filter(prise=prise, createdAt__year=current_year)
+            .annotate(month=ExtractMonth("createdAt"))  # Extraire le mois
+            .values("month")
+            .annotate(
+                total_consumption=Sum(Cast("consomation", FloatField())),  # Somme de la consommation mensuelle
+                total_voltage=Sum(Cast("tension", FloatField())),  # Somme des tensions mensuelles (facultatif)
+                total_current=Sum(Cast("courant", FloatField())),  # Somme des courants mensuels (facultatif)
+            )
+            .order_by("month")
+        )
 
-    return Response(consommation_data)
+        # Initialiser les labels et les données
+        labels = [i for i in range(1, 13)]  # Mois de 1 (Janvier) à 12 (Décembre)
+        data = [0] * 12  # Initialiser une liste avec 12 zéros
+
+        # Remplir les données
+        for entry in monthly_data:
+            month_index = entry["month"] - 1  # L'index commence à 0 pour Janvier
+            data[month_index] = entry["total_consumption"]
+
+        # Préparer la réponse
+        response_data = {
+            "labels": labels,
+            "data": data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except PriseData.DoesNotExist:
+        return Response(
+            {"error": "Aucune donnée trouvée pour la prise spécifiée."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

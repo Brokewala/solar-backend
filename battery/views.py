@@ -15,8 +15,11 @@ from datetime import timedelta
 from datetime import datetime
 from django.db.models import Sum, F
 from django.db.models.functions import Coalesce
-
-
+from django.db.models.functions import ExtractYear
+from django.db.models import Q
+from django.db.models import FloatField
+from django.db.models.functions import ExtractMonth
+from django.db.models.functions import Cast
 # models
 from .models import Battery
 from .models import BatteryData
@@ -600,7 +603,6 @@ def create_relai_state_auto_battery(sender, instance, created, **kwargs):
 # getDureeUtilisationbatteryAnuelleByIdModule
 @api_view(["GET"])
 def get_duree_utilisation_batterie_annuelle_by_id_module(request, module_id):
-
     try:
         # Vérifier si le module existe
         module = Modules.objects.get(id=module_id)
@@ -608,22 +610,25 @@ def get_duree_utilisation_batterie_annuelle_by_id_module(request, module_id):
         # Récupérer l'année en cours
         current_year = datetime.now().year
 
-        # Récupérer les batterys associées au module
+        # Récupérer les BatteryPlanning associés au module pour l'année en cours
         plannings = BatteryPlanning.objects.filter(
             battery__module=module,
-            date_debut__year=current_year,
-            date_fin__year=current_year,
+            date__year=current_year,
         )
 
         # Calculer la durée totale d'utilisation en heures
         total_duration = 0
         for planning in plannings:
             if planning.date_debut and planning.date_fin:
-                duration = (planning.date_fin - planning.date_debut).total_seconds() / 3600  # Conversion en heures
-                total_duration += duration
+                # Calculer la durée entre date_debut et date_fin
+                duration = (
+                    datetime.combine(datetime.min, planning.date_fin) -
+                    datetime.combine(datetime.min, planning.date_debut)
+                ).total_seconds() / 3600  # Conversion en heures
+                total_duration += max(duration, 0)  # Éviter les valeurs négatives
 
         return Response(
-            {"duree_annuelle": round(total_duration, 2)},  # Retourner avec 2 décimales
+            {"duree_annuelle": round(total_duration, 2)},  # Arrondi à 2 décimales
             status=status.HTTP_200_OK,
         )
 
@@ -632,7 +637,51 @@ def get_duree_utilisation_batterie_annuelle_by_id_module(request, module_id):
             {"error": "Le module avec l'ID spécifié n'existe pas."},
             status=status.HTTP_404_NOT_FOUND,
         )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
+@api_view(["GET"])
+def yearly_battery_utilisation(request, module_id):
+    try:
+        module = get_object_or_404(Modules, id=module_id)
+        battery = get_object_or_404(Battery, module=module)
+        # Vérifier si des données existent pour la batterie spécifiée
+        current_year = datetime.now().year
+
+        # Récupérer et regrouper les données par mois
+        monthly_data = (
+            BatteryData.objects.filter(battery=battery, createdAt__year=current_year)
+            .annotate(month=ExtractMonth("createdAt"))  # Extraire le mois de la date
+            .values("month")
+            .annotate(
+                total_energy=Sum(Cast("energy", FloatField())),  # Somme de l'énergie par mois
+                total_voltage=Sum(Cast("tension", FloatField())),  # Somme de la tension par mois
+                total_current=Sum(Cast("courant", FloatField())),  # Somme du courant par mois
+            )
+            .order_by("month")
+        )
+
+        # Préparer les données au format requis
+        response_data = {
+            "labels": [data['month'] for data in monthly_data],
+            "data": [data["total_energy"] for data in monthly_data],
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except BatteryData.DoesNotExist:
+        return Response(
+            {"error": "Aucune donnée trouvée pour la batterie spécifiée."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 # getCouleurbatteryByIdModule
 @api_view(["GET"])
@@ -669,19 +718,7 @@ def get_couleur_batterie_by_id_module(request, module_id):
 # listebatteryDataByDateAndIdModule
 @api_view(["GET"])
 def liste_batterie_data_by_date_and_id_module(request, module_id,date):
-    """
-    Endpoint DRF pour récupérer les données BatteryData associées à un module spécifique,
-    filtrées par une plage de dates.
-
-    :param request: Objet de requête
-    :param module_id: ID du module (passé dans l'URL)
-    :queryparam start_date: Date de début (format 'YYYY-MM-DD')
-    :queryparam end_date: Date de fin (format 'YYYY-MM-DD')
-    :return: JSON des BatteryData ou message d'erreur
-    """
-    # start_date = request.query_params.get("start_date")
-    # end_date = request.query_params.get("end_date")
-
+ 
     # Validation des paramètres de date
     if not date :
         return Response(
@@ -766,3 +803,35 @@ def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id, mo
         )
     serializer =BatteryDataSerializer(data,status=status.HTTP_200_OK)
     return Response(serializer.data, status=200)
+
+@api_view(["GET"])
+def get_battery_consumption_by_week(request,module_id):
+    """
+    Retrieve battery consumption for each day of the current week, aggregated by day.
+    """
+    # Récupérer l'année et la semaine actuelle
+    today = datetime.today()
+    start_of_week = today - timedelta(days=today.weekday())  # Lundi de cette semaine
+    end_of_week = start_of_week + timedelta(days=6)  # Dimanche de cette semaine
+
+    # Récupérer les données de consommation par jour de la semaine
+    data = (
+        BatteryData.objects.filter(
+            batterie__module_id=module_id,
+            date__gte=start_of_week,
+            date__lte=end_of_week,
+        )
+        .values("date__weekday")
+        .annotate(total_consumption=Sum("consumption"))
+        .order_by("date__weekday")
+    )
+
+    # Organiser les données pour correspondre aux jours de la semaine (lundi, mardi, etc.)
+    week_labels = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    consumption_data = {label: 0 for label in week_labels}
+
+    for entry in data:
+        day_of_week = entry["date__weekday"]
+        consumption_data[week_labels[day_of_week]] = entry["total_consumption"]
+
+    return Response(consumption_data)

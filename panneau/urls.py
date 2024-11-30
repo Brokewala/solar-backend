@@ -52,4 +52,5 @@ urlpatterns = [
     # =====================panneau=====================
     path('panneau-couleur-by-module/<str:module_id>/', views.couleur_by_module, name='couleur-by-module'),
     path('production-annuelle/<str:module_id>/', views.get_production_panneau_annuelle, name='production-annuelle'),
+    path('production-week/<str:module_id>/', views.get_panel_consumption_by_week, name='production-semaine'),
 ]

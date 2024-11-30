@@ -11,7 +11,11 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Sum
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
+from datetime import datetime
+from django.db.models.functions import Cast
+from django.db.models import Sum, FloatField
+from django.db.models.functions import ExtractMonth
+from datetime import datetime, timedelta
 # models
 from .models import Panneau
 from .models import PanneauData
@@ -585,13 +589,84 @@ def get_production_panneau_annuelle(request,module_id):
         return Response({"detail": "Module ID is required"}, status=400)
     
     # Filter PanneauData by module_id via related Panneau
-    production_data = (
-        PanneauData.objects.filter(panneau__module_id=module_id)
-        .values('panneau_id')  # Group by panneau
-        .annotate(annual_production=Sum('production'))  # Sum production
+    try:
+        # Récupérer le panneau spécifié
+        module = get_object_or_404(Modules, id=module_id)
+        panneau = get_object_or_404(Panneau, module=module)
+
+        # Année en cours
+        current_year = datetime.now().year
+
+        # Récupérer et regrouper les données par mois
+        monthly_data = (
+            PanneauData.objects.filter(panneau=panneau, createdAt__year=current_year)
+            .annotate(month=ExtractMonth("createdAt"))  # Extraire le mois de la date
+            .values("month")
+            .annotate(
+                total_production=Sum(Cast("production", FloatField())),  # Somme de la production par mois
+                total_voltage=Sum(Cast("tension", FloatField())),  # Somme de la tension par mois (optionnel)
+                total_current=Sum(Cast("courant", FloatField())),  # Somme du courant par mois (optionnel)
+            )
+            .order_by("month")
+        )
+
+        # Initialiser les labels et les données
+        labels = [i for i in range(1, 13)]  # Mois de 1 (Janvier) à 12 (Décembre)
+        data = [0] * 12  # Initialiser une liste avec 12 zéros
+
+        # Remplir les données avec les résultats des requêtes
+        for entry in monthly_data:
+            month_index = entry["month"] - 1  # L'index commence à 0 pour Janvier
+            data[month_index] = entry["total_production"]
+
+        # Préparer la réponse au format JSON
+        response_data = {
+            "labels": labels,  # Mois de 1 à 12
+            "data": data,      # Données agrégées de production pour chaque mois
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except PanneauData.DoesNotExist:
+        return Response(
+            {"error": "Aucune donnée trouvée pour le panneau spécifié."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def get_panel_consumption_by_week(request,module_id):
+    """
+    Retrieve panel consumption for each day of the current week, aggregated by day.
+    """
+    # Récupérer l'année et la semaine actuelle
+    today = datetime.today()
+    start_of_week = today - timedelta(days=today.weekday())  # Lundi de cette semaine
+    end_of_week = start_of_week + timedelta(days=6)  # Dimanche de cette semaine
+
+    # Récupérer les données de consommation par jour de la semaine
+    data = (
+        PanneauData.objects.filter(
+            panneau__module_id=module_id,
+            date__gte=start_of_week,
+            date__lte=end_of_week,
+        )
+        .values("date__weekday")
+        .annotate(total_consumption=Sum("consumption"))
+        .order_by("date__weekday")
     )
 
-    if not production_data:
-        return Response({"detail": "No production data found for this module"}, status=404)
-    
-    return Response(production_data)
+    # Organiser les données pour correspondre aux jours de la semaine (lundi, mardi, etc.)
+    week_labels = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    consumption_data = {label: 0 for label in week_labels}
+
+    for entry in data:
+        day_of_week = entry["date__weekday"]
+        consumption_data[week_labels[day_of_week]] = entry["total_consumption"]
+
+    return Response(consumption_data)

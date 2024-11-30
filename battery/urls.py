@@ -52,7 +52,7 @@ urlpatterns = [
     # api data for battery=======================
     path(
         "battery-duration/<str:module_id>/",
-        views.get_duree_utilisation_batterie_annuelle_by_id_module,
+        views.yearly_battery_utilisation,
         name="get_duree_utilisation_batterie_annuelle_by_id_module",
     ),
     path(
@@ -71,4 +71,6 @@ urlpatterns = [
         views.liste_duree_batterie_mensuelle_by_id_module_and_month,
         name="liste_duree_batterie_mensuelle_by_id_module_and_month",
     ),
+    path('battery-data-week/<str:module_id>/', views.get_battery_consumption_by_week),
+
 ]

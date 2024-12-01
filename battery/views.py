@@ -20,6 +20,9 @@ from django.db.models import Q
 from django.db.models import FloatField
 from django.db.models.functions import ExtractMonth
 from django.db.models.functions import Cast
+from django.db.models.functions import ExtractWeekDay, ExtractWeek
+from calendar import monthrange
+
 # models
 from .models import Battery
 from .models import BatteryData
@@ -762,76 +765,256 @@ def liste_batterie_data_by_date_and_id_module(request, module_id,date):
 
 # listeDureebatteryMensuelleByIdModuleAndMonth
 @api_view(["GET"])
-def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id, month):
-    
-   # Récupérer l'année actuelle
-    year = datetime.now().year
+def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id):
+     
+    today = datetime.today()
+    current_year = today.year
+    current_month = today.month
 
-    # Validate inputs
-    if not module_id:
-        return Response({"detail": "Module ID is required."}, status=400)
-    if not month:
-        return Response({"detail": "Month is required as a number (1-12)."}, status=400)
+    # Déterminer les premiers et derniers jours du mois
+    _, last_day_of_month = monthrange(current_year, current_month)
+    start_of_month = datetime(current_year, current_month, 1)
+    end_of_month = datetime(current_year, current_month, last_day_of_month)
 
-    # Validate the month format
-    try:
-        month = int(month)
-        if month < 1 or month > 12:
-            raise ValueError("Month out of range.")
-    except ValueError:
-        return Response(
-            {"detail": "Month must be a number between 1 and 12."},
-            status=400,
-        )
-
-    # Query batteryData to calculate total duration for each battery in the given module, year, and month
+    # Récupérer les données agrégées par semaine
     data = (
         BatteryData.objects.filter(
             battery__module_id=module_id,
-            date__year=year,
-            date__month=month,
+            createdAt__gte=start_of_month,
+            createdAt__lte=end_of_month,
         )
-        .values("battery_id")  # Group by battery ID
-        .annotate(total_duration=Sum("duration"))  # Sum durations
+        .annotate(week=ExtractWeek("createdAt"))
+        .values("week")
+        .annotate(total_consumption=Sum("energy"))
+        .order_by("week")
     )
 
-    # Check if any data exists
-    if not data:
-        return Response(
-            {"detail": f"No data found for module {module_id} in {datetime(year, month, 1).strftime('%B %Y')}."},
-            status=404,
+    # Générer les labels pour chaque semaine du mois
+    start_of_week = start_of_month
+    weekly_labels = []
+    while start_of_week <= end_of_month:
+        end_of_week = min(start_of_week + timedelta(days=6), end_of_month)
+        weekly_labels.append(
+            f"Semaine du {start_of_week.strftime('%d %b')} au {end_of_week.strftime('%d %b')}"
         )
-    serializer =BatteryDataSerializer(data,status=status.HTTP_200_OK)
-    return Response(serializer.data, status=200)
+        start_of_week += timedelta(days=7)
+
+    # Mapper les données agrégées par semaine
+    consumption_data = [0] * len(weekly_labels)
+
+    for entry in data:
+        week_number = entry["week"]
+        week_index = week_number - start_of_month.isocalendar()[1]
+        if 0 <= week_index < len(consumption_data):
+            consumption_data[week_index] = entry["total_consumption"]
+
+    return Response({"labels": weekly_labels, "data": consumption_data})
 
 @api_view(["GET"])
 def get_battery_consumption_by_week(request,module_id):
     """
     Retrieve battery consumption for each day of the current week, aggregated by day.
     """
-    # Récupérer l'année et la semaine actuelle
     today = datetime.today()
     start_of_week = today - timedelta(days=today.weekday())  # Lundi de cette semaine
     end_of_week = start_of_week + timedelta(days=6)  # Dimanche de cette semaine
 
-    # Récupérer les données de consommation par jour de la semaine
+    # Récupérer les données et extraire le jour de la semaine
     data = (
         BatteryData.objects.filter(
-            batterie__module_id=module_id,
-            date__gte=start_of_week,
-            date__lte=end_of_week,
+            battery__module_id=module_id,
+            createdAt__gte=start_of_week,
+            createdAt__lte=end_of_week,
         )
-        .values("date__weekday")
-        .annotate(total_consumption=Sum("consumption"))
-        .order_by("date__weekday")
+        .annotate(day_of_week=ExtractWeekDay("createdAt"))
+        .values("day_of_week")
+        .annotate(total_consumption=Sum("energy"))
+        .order_by("day_of_week")
     )
 
-    # Organiser les données pour correspondre aux jours de la semaine (lundi, mardi, etc.)
-    week_labels = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    # Mapper les jours de la semaine (1 = Dimanche, 2 = Lundi, ..., 7 = Samedi)
+    week_labels = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
     consumption_data = {label: 0 for label in week_labels}
 
     for entry in data:
-        day_of_week = entry["date__weekday"]
-        consumption_data[week_labels[day_of_week]] = entry["total_consumption"]
+        day_of_week = entry["day_of_week"]
+        consumption_data[week_labels[day_of_week - 1]] = entry["total_consumption"]
 
-    return Response(consumption_data)
+    # Préparer les labels et les data
+    labels = list(consumption_data.keys())
+    data = list(consumption_data.values())
+
+    return Response({"labels": labels, "data": data})
+
+
+@api_view(["GET"])
+def get_weekly_battery_data_for_month(request, module_id, year, month):
+    """
+    Retrieve battery consumption for each week of a given month, aggregated by day of the week.
+    """
+    try:
+        # Convertir year et month en entiers
+        year = int(year)
+        month = int(month)
+    except ValueError:
+        return Response({"error": "Year and month must be integers."}, status=400)
+
+    # Vérifier que le mois est valide
+    if not (1 <= month <= 12):
+        return Response({"error": "Month must be between 1 and 12."}, status=400)
+
+    # Déterminer les premiers et derniers jours du mois
+    _, last_day_of_month = monthrange(year, month)
+    start_of_month = datetime(year, month, 1)
+    end_of_month = datetime(year, month, last_day_of_month, 23, 59, 59)
+
+    # Vérifier les dates de la plage
+    print(f"Plage de dates : {start_of_month} à {end_of_month}")
+
+    # Récupérer les données de la base de données
+    data = (
+        BatteryData.objects.filter(
+            battery__module_id=module_id,
+            createdAt__gte=start_of_month,
+            createdAt__lte=end_of_month,
+        )
+        .annotate(
+            week=ExtractWeek("createdAt"),
+            day_of_week=ExtractWeekDay("createdAt")
+        )
+        .values("week", "day_of_week")
+        .annotate(total_consumption=Sum("energy"))
+        .order_by("week", "day_of_week")
+    )
+
+    # print(f"Données récupérées : {data}")  # Debug des données brutes
+
+    # Mapper les jours de la semaine (1 = Dimanche, ..., 7 = Samedi)
+    week_labels = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
+
+    # Organisation des données par semaine
+    weekly_data = {}
+    for entry in data:
+        week_number = entry["week"]
+        day_of_week = entry["day_of_week"]
+        total_consumption = entry["total_consumption"]
+
+        # Initialiser les données pour la semaine si nécessaire
+        if week_number not in weekly_data:
+            weekly_data[week_number] = {"labels": week_labels, "data": [0] * 7}
+
+        # Ajouter la consommation totale pour le jour de la semaine
+        weekly_data[week_number]["data"][day_of_week - 1] = total_consumption
+
+    # Créer une réponse organisée par semaine
+    response_data = []
+    for week_number in sorted(weekly_data.keys()):
+        response_data.append({
+            "week": f"Semaine {week_number}",
+            "labels": weekly_data[week_number]["labels"],
+            "data": weekly_data[week_number]["data"]
+        })
+
+    # Ajouter les semaines sans données
+    current_date = start_of_month
+    while current_date <= end_of_month:
+        week_number = current_date.isocalendar()[1]  # Récupérer la semaine ISO
+        if week_number not in weekly_data:
+            response_data.append({
+                "week": f"Semaine {week_number}",
+                "labels": week_labels,
+                "data": [0] * 7
+            })
+        current_date += timedelta(weeks=1)
+
+    return Response(response_data)
+
+
+@api_view(["GET"])
+def get_daily_battery_data_for_week(request,module_id,week_number,day_of_week):
+    """
+    Retrieve battery data for a specific day (e.g., Saturday) of a given week number.
+    The response will return hours as labels and corresponding data for fields like
+    tension, puissance, courant, energy, and pourcentage.
+    """
+    module_id = module_id
+    week_number = int(week_number)
+    day_of_week = day_of_week  # Example: "Saturday"
+    
+ # Traduction des jours de la semaine (français -> anglais)
+    french_to_english_days = {
+        "lundi": "Monday",
+        "mardi": "Tuesday",
+        "mercredi": "Wednesday",
+        "jeudi": "Thursday",
+        "vendredi": "Friday",
+        "samedi": "Saturday",
+        "dimanche": "Sunday",
+    }
+
+    # Traduire le jour en anglais
+    day_of_week = french_to_english_days.get(day_of_week.lower())
+    if not day_of_week:
+        return Response(
+            {"error": "Invalid day_of_week. Please provide a valid day in French."},
+            status=400,
+        )
+
+    # Calculer la date du premier jour de l'année
+    first_day_of_year = datetime(datetime.today().year, 1, 1)
+
+    # Calculer la date du début de la semaine demandée
+    start_of_week = first_day_of_year + timedelta(weeks=week_number - 1)
+
+    # Trouver le décalage de la semaine pour le jour spécifié
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    day_of_week_index = days_of_week.index(day_of_week)
+
+    # Calculer la date du jour demandé dans la semaine
+    target_day = start_of_week + timedelta(days=day_of_week_index)
+
+    # Filtrer les données de batterie pour ce jour précis
+    data = (
+        BatteryData.objects.filter(
+            battery__module_id=module_id,
+            createdAt__date=target_day.date(),
+        )
+        .values("createdAt__hour")
+        .annotate(
+            total_tension=Sum("tension"),
+            total_puissance=Sum("puissance"),
+            total_courant=Sum("courant"),
+            total_energy=Sum("energy"),
+            total_pourcentage=Sum("pourcentage"),
+        )
+        .order_by("createdAt__hour")
+    )
+
+    # Créer une liste des données horaires
+    result = []
+    for hour in range(24):
+        hour_data = next(
+            (
+                {
+                    "hour": hour,
+                    "tension": entry["total_tension"] or 0,
+                    "puissance": entry["total_puissance"] or 0,
+                    "courant": entry["total_courant"] or 0,
+                    "energy": entry["total_energy"] or 0,
+                    "pourcentage": entry["total_pourcentage"] or 0,
+                }
+                for entry in data
+                if entry["createdAt__hour"] == hour
+            ),
+            {
+                "hour": hour,
+                "tension": 0,
+                "puissance": 0,
+                "courant": 0,
+                "energy": 0,
+                "pourcentage": 0,
+            },
+        )
+        result.append(hour_data)
+
+    return Response(result)

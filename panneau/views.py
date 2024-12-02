@@ -659,6 +659,7 @@ def get_panel_consumption_by_week(request,module_id):
     end_of_week = start_of_week + timedelta(days=6)  # Dimanche de cette semaine
 
     # Récupérer les données de consommation par jour de la semaine
+    # Cast("tension", FloatField())
     data = (
         PanneauData.objects.filter(
             panneau__module_id=module_id,
@@ -666,7 +667,7 @@ def get_panel_consumption_by_week(request,module_id):
             createdAt__lte=end_of_week,
         )
         .values("createdAt__weekday")
-        .annotate(total_consumption=Sum("consumption"))
+        .annotate(total_consumption=Sum(Cast("consumption", FloatField())))
         .order_by("createdAt__weekday")
     )
 
@@ -703,6 +704,7 @@ def get_weekly_panneau_data_for_month(request, module_id, year, month):
     end_of_month = datetime(year, month, last_day_of_month, 23, 59, 59)
 
     # Récupérer les données de la base de données
+    # Cast("tension", FloatField())
     data = (
         PanneauData.objects.filter(
             panneau__module_id=module_id,
@@ -714,7 +716,7 @@ def get_weekly_panneau_data_for_month(request, module_id, year, month):
             day_of_week=ExtractWeekDay("createdAt")
         )
         .values("week", "day_of_week")
-        .annotate(total_production=Sum("production"))
+        .annotate(total_production=Sum(Cast("production", FloatField())))
         .order_by("week", "day_of_week")
     )
 
@@ -790,6 +792,7 @@ def get_daily_panneau_data_for_week(request, module_id, week_number, day_of_week
     target_day = start_of_week + timedelta(days=days_of_week.index(day_of_week))
 
     # Récupérer les données
+    #  Cast("tension", FloatField())
     data = (
         PanneauData.objects.filter(
             panneau__module_id=module_id,
@@ -797,10 +800,10 @@ def get_daily_panneau_data_for_week(request, module_id, week_number, day_of_week
         )
         .values("createdAt__hour")
         .annotate(
-            total_tension=Sum("tension"),
-            total_puissance=Sum("puissance"),
-            total_courant=Sum("courant"),
-            total_production=Sum("production"),
+            total_tension=Sum(Cast("tension", FloatField())),
+            total_puissance=Sum(Cast("puissance", FloatField())),
+            total_courant=Sum(Cast("courant", FloatField())),
+            total_production=Sum(Cast("production", FloatField())),
         )
         .order_by("createdAt__hour")
     )

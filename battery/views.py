@@ -777,6 +777,7 @@ def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id):
     end_of_month = datetime(current_year, current_month, last_day_of_month)
 
     # Récupérer les données agrégées par semaine
+    #Sum(Cast("energy", FloatField()))
     data = (
         BatteryData.objects.filter(
             battery__module_id=module_id,
@@ -785,7 +786,7 @@ def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id):
         )
         .annotate(week=ExtractWeek("createdAt"))
         .values("week")
-        .annotate(total_consumption=Sum("energy"))
+        .annotate(total_consumption=Sum(Cast("energy", FloatField())))
         .order_by("week")
     )
 
@@ -820,6 +821,7 @@ def get_battery_consumption_by_week(request,module_id):
     end_of_week = start_of_week + timedelta(days=6)  # Dimanche de cette semaine
 
     # Récupérer les données et extraire le jour de la semaine
+    # Cast("energy", FloatField())
     data = (
         BatteryData.objects.filter(
             battery__module_id=module_id,
@@ -828,7 +830,7 @@ def get_battery_consumption_by_week(request,module_id):
         )
         .annotate(day_of_week=ExtractWeekDay("createdAt"))
         .values("day_of_week")
-        .annotate(total_consumption=Sum("energy"))
+        .annotate(total_consumption=Sum(Cast("energy", FloatField())))
         .order_by("day_of_week")
     )
 
@@ -883,7 +885,7 @@ def get_weekly_battery_data_for_month(request, module_id, year, month):
             day_of_week=ExtractWeekDay("createdAt")
         )
         .values("week", "day_of_week")
-        .annotate(total_consumption=Sum("energy"))
+        .annotate(total_consumption=Sum(Cast("energy", FloatField())))
         .order_by("week", "day_of_week")
     )
 
@@ -974,6 +976,7 @@ def get_daily_battery_data_for_week(request,module_id,week_number,day_of_week):
     target_day = start_of_week + timedelta(days=day_of_week_index)
 
     # Filtrer les données de batterie pour ce jour précis
+    # Cast("energy", FloatField())
     data = (
         BatteryData.objects.filter(
             battery__module_id=module_id,
@@ -981,11 +984,11 @@ def get_daily_battery_data_for_week(request,module_id,week_number,day_of_week):
         )
         .values("createdAt__hour")
         .annotate(
-            total_tension=Sum("tension"),
-            total_puissance=Sum("puissance"),
-            total_courant=Sum("courant"),
-            total_energy=Sum("energy"),
-            total_pourcentage=Sum("pourcentage"),
+            total_tension=Sum(Cast("tension", FloatField())),
+            total_puissance=Sum(Cast("puissance", FloatField())),
+            total_courant=Sum(Cast("courant", FloatField())),
+            total_energy=Sum(Cast("energy", FloatField())),
+            total_pourcentage=Sum(Cast("pourcentage", FloatField())),
         )
         .order_by("createdAt__hour")
     )

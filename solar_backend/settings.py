@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     'rating',
     'report',
     'subscription',
-    # 'notification',
+    'notification',
 ]
 
 REST_FRAMEWORK = {

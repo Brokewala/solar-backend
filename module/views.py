@@ -21,19 +21,6 @@ from .serializers import ModulesInfoSerializer
 from .serializers import ModulesDetailSerializer
 
 
-def create_module(user,name):
-  
-    # create user
-    module = Modules.objects.create(
-        name=name
-    )
-    # save into database
-    module.save()
-    #  user
-    if user:
-        user_value = get_object_or_404(ProfilUser, id=user)
-        module.user = user_value
-        module.save()
 
 
 # get all module
@@ -75,11 +62,16 @@ class ModulesAPIView(APIView):
 
     def post(self, request):
         gr_code = request.FILES.get("gr_code")
-        name = request.data.get("name")
         identifiant = request.data.get("identifiant")
         password = request.data.get("password")
         user = request.data.get("user")
-        if name is None or user is None:
+        if Modules.objects.filter(user__id=user).exists():
+             return Response(
+                {"error": "module already existe"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        
+        if user is None:
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -89,7 +81,6 @@ class ModulesAPIView(APIView):
     
         # create user
         module = Modules.objects.create(
-            name=name,
             user=user_value
         )
         # save into database
@@ -123,7 +114,6 @@ class ModulesAPIView(APIView):
         module = self.get_object(module_id=module_id)
         # variables
         gr_code = request.FILES.get("gr_code")
-        name = request.data.get("name")
         identifiant = request.data.get("identifiant")
         password = request.data.get("password")
         user = request.data.get("user")
@@ -134,9 +124,9 @@ class ModulesAPIView(APIView):
             module.save()
 
         #  gr_code
-        if name:
-            module.name = name
-            module.save()
+        # if name:
+        #     module.name = name
+        #     module.save()
 
         #  gr_code
         if identifiant:

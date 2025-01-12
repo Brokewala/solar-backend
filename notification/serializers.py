@@ -1,13 +1,13 @@
 from rest_framework.serializers import ModelSerializer
 
 # model
-from .models import Subscription
+from .models import Notification
 
 
 # serializer
-class SubscriptionSerializer(ModelSerializer):
+class NotificationSerializer(ModelSerializer):
     class Meta:
-        model = Subscription
+        model = Notification
         fields = "__all__"
 
 

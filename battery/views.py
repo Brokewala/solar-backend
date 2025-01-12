@@ -8,7 +8,7 @@ from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
+from datetime import timezone
 
 # django
 from datetime import timedelta
@@ -933,17 +933,18 @@ def get_weekly_battery_data_for_month(request, module_id, year, month):
 
 
 @api_view(["GET"])
-def get_daily_battery_data_for_week(request,module_id,week_number,day_of_week):
+def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week):
     """
     Retrieve battery data for a specific day (e.g., Saturday) of a given week number.
     The response will return hours as labels and corresponding data for fields like
     tension, puissance, courant, energy, and pourcentage.
     """
-    module_id = module_id
-    week_number = int(week_number)
-    day_of_week = day_of_week  # Example: "Saturday"
-    
- # Traduction des jours de la semaine (français -> anglais)
+    try:
+        week_number = int(week_number)  # Conversion en entier
+    except ValueError:
+        return Response({"error": "week_number must be an integer."}, status=400)
+
+    # Traduction des jours de la semaine (français -> anglais)
     french_to_english_days = {
         "lundi": "Monday",
         "mardi": "Tuesday",
@@ -965,22 +966,29 @@ def get_daily_battery_data_for_week(request,module_id,week_number,day_of_week):
     # Calculer la date du premier jour de l'année
     first_day_of_year = datetime(datetime.today().year, 1, 1)
 
+    # Ajuster pour commencer la semaine un lundi si ce n'est pas le cas
+    if first_day_of_year.weekday() != 0:  # 0 = lundi
+        first_day_of_year -= timedelta(days=first_day_of_year.weekday())
+
     # Calculer la date du début de la semaine demandée
     start_of_week = first_day_of_year + timedelta(weeks=week_number - 1)
 
-    # Trouver le décalage de la semaine pour le jour spécifié
+    # Trouver l'index du jour spécifié
     days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     day_of_week_index = days_of_week.index(day_of_week)
 
-    # Calculer la date du jour demandé dans la semaine
+    # Calculer la date cible
     target_day = start_of_week + timedelta(days=day_of_week_index)
 
-    # Filtrer les données de batterie pour ce jour précis
-    # Cast("energy", FloatField())
+    # Plage de temps pour inclure toutes les heures de la journée cible
+    start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
+    end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
+
+    # Filtrer les données de batterie pour cette plage horaire
     data = (
         BatteryData.objects.filter(
             battery__module_id=module_id,
-            createdAt__date=target_day.date(),
+            createdAt__range=(start_of_day, end_of_day),
         )
         .values("createdAt__hour")
         .annotate(

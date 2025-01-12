@@ -24,7 +24,7 @@ class Modules(models.Model):
         null=True,
         default="grcode.jpg",
     )
-    name = models.CharField(max_length=200,blank=True,null=True)
+    # name = models.CharField(max_length=200,blank=True,null=True)
     identifiant = models.CharField(max_length=200,blank=True,null=True)
     password = models.CharField(max_length=200,blank=True,null=True)
     active = models.BooleanField(default=False)

@@ -24,7 +24,6 @@ from .models import ProfilUser,UserToken
 from .serializers import CustomTokenObtainPairSerializer
 from .serializers import ProfilUserSerializer
 from solar_backend.utils import Util
-from module.views import create_module
 
 def send_email_notification(email_content, email, titre):
     content = {
@@ -328,7 +327,7 @@ def signup_user_with_code_in_email(request):
 def get_user_code_with_user_id(request, user_id):
     try:
         user = ProfilUser.objects.only(
-            "id", "email", "code", "username", "first_name"
+            "id", "email", "code", "first_name"
         ).get(id=user_id)
     except ProfilUser.DoesNotExist:
         return Response(
@@ -355,9 +354,6 @@ def verify_code_of_user(request):
         user.status = True
         user.save()
         
-        # create module
-        create_module(user.id,user.first_name,user.last_name)
-
      
         # Envoi de la réponse
         refresh = RefreshToken.for_user(user)

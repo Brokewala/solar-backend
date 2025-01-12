@@ -17,6 +17,7 @@ from datetime import datetime
 from datetime import datetime, timedelta
 from calendar import monthrange
 from django.db.models.functions import ExtractWeek, ExtractWeekDay
+from datetime import timezone
 
 # models
 from .models import Prise
@@ -797,7 +798,13 @@ def get_daily_prise_data_for_week(request, module_id, week_number, day_of_week):
     Retrieve Prise data for a specific day (e.g., Saturday) of a given week number.
     The response will return hours as labels and corresponding data for fields like
     tension, puissance, courant, and consomation.
+    
     """
+    try:
+        week_number = int(week_number)  # Conversion en entier
+    except ValueError:
+        return Response({"error": "week_number must be an integer."}, status=400)
+
     # Traduction des jours de la semaine (français -> anglais)
     french_to_english_days = {
         "lundi": "Monday",
@@ -816,18 +823,33 @@ def get_daily_prise_data_for_week(request, module_id, week_number, day_of_week):
             status=400,
         )
 
-    # Calculer la date cible
+    # Calculer la date du premier jour de l'année
     first_day_of_year = datetime(datetime.today().year, 1, 1)
-    start_of_week = first_day_of_year + timedelta(weeks=int(week_number) - 1)
+
+    # Ajuster pour commencer la semaine un lundi si ce n'est pas le cas
+    if first_day_of_year.weekday() != 0:  # 0 = lundi
+        first_day_of_year -= timedelta(days=first_day_of_year.weekday())
+
+    # Calculer la date du début de la semaine demandée
+    start_of_week = first_day_of_year + timedelta(weeks=week_number - 1)
+
+    # Trouver l'index du jour spécifié
     days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    target_day = start_of_week + timedelta(days=days_of_week.index(day_of_week))
+    day_of_week_index = days_of_week.index(day_of_week)
+
+    # Calculer la date cible
+    target_day = start_of_week + timedelta(days=day_of_week_index)
+
+    # Plage de temps pour inclure toutes les heures de la journée cible
+    start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
+    end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
 
     # Récupérer les données
     # Cast("tension", FloatField())
     data = (
         PriseData.objects.filter(
             prise__module_id=module_id,
-            createdAt__date=target_day.date(),
+            createdAt__range=(start_of_day, end_of_day),
         )
         .values("createdAt__hour")
         .annotate(

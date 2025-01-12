@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/solar/prise/', include("prise.urls")),
     path('api/solar/report/', include("report.urls")),
     path('api/solar/subscription/', include("subscription.urls")),
+    path('api/solar/notification/', include("notification.urls")),
 
 ]
 

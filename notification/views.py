@@ -1,3 +1,294 @@
-from django.shortcuts import render
+from rest_framework import status
+# from rest_framework import viewsets
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework.decorators import permission_classes
 
-# Create your views here.
+# django
+from django.shortcuts import get_object_or_404
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from datetime import datetime, timedelta
+# Notif
+from .models import Notification
+from users.models import ProfilUser
+
+
+# Battery
+from battery.models import Battery
+from battery.models import BatteryData
+from battery.models import BatteryPlanning
+from battery.models import BatteryReference
+from battery.models import BatteryRelaiState
+
+# prise
+from prise.models import Prise
+from prise.models import PriseData
+
+# serializer
+from .serializers import NotificationSerializer
+
+def create_notification_serializer(user,name,message):
+    notif = Notification.objects.create(
+        user=user,
+        fonction=name,
+        message=message,
+    )
+    serializer = NotificationSerializer(notif,many=False).data
+    return serializer
+
+
+def send_websocket_notification(user_id, data_notif):
+    """
+    Envoie une notification via WebSocket à l'utilisateur.
+    """
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f"notification_{user_id}",
+        {
+            "type": "notification_message",
+            "message": data_notif,
+        },
+    )
+    
+@api_view(["PUT"])
+# @permission_classes([IsAuthenticated])
+def read_notification(request,id_notif):
+    try:
+        notif = Notification.objects.get(id=id_notif)
+        serializer = NotificationSerializer(notif, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Notification.DoesNotExist:
+        return Response({"message":"notification not found"},status=status.HTTP_404_NOT_FOUND)
+
+ 
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def get_all_by_user_notification(request,user_id):
+    notif = Notification.objects.filter(user__id=user_id).order_by("-createdAt")
+    serializer = NotificationSerializer(notif, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(["DELETE"])
+# @permission_classes([IsAuthenticated])
+def delete_all_by_user_notification(request,user_id):
+  # Filtre les notifications par utilisateur
+    notif_queryset = Notification.objects.filter(user__id=user_id)
+
+    # Si aucune notification n'existe, renvoie un message approprié
+    if not notif_queryset.exists():
+        return Response(
+            {"message": "Aucune notification trouvée pour cet utilisateur."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Supprime les notifications
+    deleted_count = notif_queryset.delete()[0]  # `delete()` renvoie un tuple (num_deleted, _)
+    return Response(
+        {"message": f"Suppression réussie. {deleted_count} notification(s) supprimée(s)."},
+        status=status.HTTP_200_OK,
+    )
+# ===============================================BATTERY =================================
+# Courant
+@receiver(post_save, sender=BatteryData)
+def notify_courant_status(sender, instance, created, **kwargs):
+    """
+    Gère les notifications liées au courant.
+    """
+    if not created:
+        return
+
+    user = instance.battery.module.user
+    courant = float(instance.courant or 0)
+    message = None
+
+    if courant == 0:
+        message = "Aucune charge branchée."
+    elif courant > 0:
+        message = "Déchargement de la batterie."
+
+    if message:
+        data_notif = create_notification_serializer(user,"Courant", message)
+        send_websocket_notification(user.id, data_notif)
+
+# Puissance
+@receiver(post_save, sender=BatteryData)
+def notify_puissance_status(sender, instance, created, **kwargs):
+    """
+    Gère les notifications liées à la puissance.
+    """
+    if not created:
+        return
+
+    user = instance.battery.module.user
+    puissance = float(instance.puissance or 0)
+    capacity = float(instance.battery.puissance or 0)
+    message = None
+
+    if capacity > 0:
+        if puissance >= 0.9 * capacity:
+            message = (
+                "Attention ! La puissance énergétique est très élevée. "
+                "Veuillez réduire la puissance totale utilisée pour préserver votre batterie."
+            )
+        elif puissance <= 0.2 * capacity:
+            message = (
+                "Félicitations ! Vous utilisez moins de puissance d’énergie, vous réalisez des économies d’énergie."
+            )
+        elif puissance == 0:
+            # Condition pour une puissance égale à 0 pendant 1h30
+            time_since_last_change = datetime.now() - instance.createdAt
+            if time_since_last_change >= timedelta(hours=1.5):
+                message = "Pourquoi ne pas utiliser votre batterie ? Nous sommes là pour vous aider à mieux le gérer."
+
+    if message:
+        data_notif = create_notification_serializer(user,"Puissance", message)
+        send_websocket_notification(user.id, data_notif)
+
+# Consommation / Capacité
+@receiver(post_save, sender=BatteryData)
+def notify_consumption_status(sender, instance, created, **kwargs):
+    """
+    Gère les notifications liées à la consommation de la batterie.
+    """
+    if not created:
+        return
+
+    user = instance.battery.module.user
+    capacity = float(instance.battery.puissance or 0)
+    consumption = float(instance.energy or 0)  # Exemple, ajustez selon vos champs
+    message = None
+
+    # Notifications pour consommation dépassant 10% de la capacité en 1h
+    if capacity > 0 and consumption > 0.1 * capacity:
+        message = (
+            "Vous avez consommé trop d’énergie en peu de temps. "
+            "Veuillez respecter un timing raisonnable pour éviter des dommages à votre matériel."
+        )
+    elif capacity > 0 and consumption <= 0.1 * capacity:
+        message = (
+            "Bravo ! Votre consommation est optimale et préserve votre matériel. Continuez ainsi !"
+        )
+
+    # Notification quotidienne (fin de journée)
+    if datetime.now().hour == 23 and datetime.now().minute == 59:
+        message = f"Aujourd'hui, vous avez consommé un total de {consumption} Ah."
+
+    if message:
+        data_notif = create_notification_serializer(user,"Consommation", message)
+        send_websocket_notification(user.id, data_notif)
+
+# notification for new battery data
+@receiver(post_save, sender=BatteryData)
+def notify_new_BatteryData(sender, instance, created, **kwargs):
+    if not created:
+        return  
+    
+
+    battery = instance.battery
+    module = battery.module
+    user = module.user
+    # notif
+    data_notif = None
+    
+    # Paramètres utilisateur (ajuster selon vos modèles si nécessaire)
+    tension_nominale = 12  # Par défaut, récupérer cela depuis le modèle utilisateur
+    # Exemple : tension_nominale = user.settings.tension_nominale
+    tension_actuelle = float(instance.tension) if instance.tension else 0.0
+
+    # Messages de notification
+    message = None
+    if tension_actuelle == 0:
+        message = "Vérifiez si votre batterie est correctement branchée."
+    elif tension_actuelle > 0:
+        message = "La batterie est branchée (passage de 0 à une valeur différente de 0)."
+
+
+    # Notifications spécifiques aux tensions nominales
+    if tension_nominale == 12:
+        if tension_actuelle == 10.5:
+            message = "Attention ! La tension de votre batterie est faible."
+
+        elif tension_actuelle == 14.8:
+            message = (
+                "Votre batterie atteint sa tension maximale. "
+                "Si elle dépasse 14,8V, nous vous conseillons d'ajuster le seuil dans les paramètres pour éviter des dommages."
+            )
+
+    elif tension_nominale == 24:
+        if tension_actuelle == 21.6:
+            message = "Attention ! La tension de votre batterie est faible."
+
+        elif tension_actuelle == 28.8:
+            message = (
+                "Votre batterie atteint sa tension maximale. "
+                "Si elle dépasse 28,8V, ajustez le seuil dans les paramètres."
+            )
+
+    elif tension_nominale == 48:
+        if tension_actuelle == 39.0:
+            message = "Attention ! La tension de votre source est faible."
+
+        elif tension_actuelle == 54.6:
+            message = (
+                "Votre batterie atteint sa tension maximale. "
+                "Si elle dépasse 54,6V, ajustez le seuil dans les paramètres."
+            )
+            
+ # Si un message est défini, envoyer la notification
+    if message:
+        data_notif = create_notification_serializer(user, "Tension", message)
+        send_websocket_notification(user.id, data_notif)
+
+
+# ===================================================PRISE =================================
+
+@receiver(post_save, sender=PriseData)
+def notify_prise_data(sender, instance, created, **kwargs):
+    if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
+        return
+
+    user = instance.prise.module.user
+    if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer
+        return
+
+    messages = []
+
+    # Vérification de la tension
+    if instance.tension:
+        tension = float(instance.tension)
+        if tension == 0:
+            messages.append("Aucun appareil détecté. Il semble que la prise soit déconnectée ou l'interrupteur soit éteint. Veuillez vérifier vos branchements ou allumer l'interrupteur.")
+        elif tension > 0 and tension < 200:
+            messages.append("Attention ! Une baisse de tension a été détectée. Il est recommandé d'installer un onduleur pour protéger votre matériel.")
+        elif tension >= 200 and tension < 230:
+            messages.append("Un appareil a été détecté et branché avec succès. Vous pouvez désormais planifier son utilisation via les paramètres de planification.")
+        elif tension >= 230:
+            messages.append("Attention ! Une surtension a été détectée. Il est recommandé d'installer un onduleur pour éviter d'endommager votre matériel.")
+
+    # Vérification du courant
+    if instance.courant:
+        courant = float(instance.courant)
+        if courant == 0:
+            messages.append("Aucun appareil détecté sur cette source. Veuillez vérifier si votre matériel est correctement branché.")
+        elif courant > 0:
+            messages.append("Un appareil a été détecté et le branchement est réussi.")
+
+    # Vérification de la puissance
+    if instance.puissance:
+        puissance = float(instance.puissance)
+        messages.append(f"Votre appareil consomme environ {puissance} kW.")
+
+    # Vérification de la consommation
+    if instance.consomation:
+        consomation = float(instance.consomation)
+        messages.append(f"Votre appareil consomme {consomation} kWh d'énergie.")
+
+    # Ajout des notifications au système
+    for message in messages:
+        data_notif = create_notification_serializer(user, "Prise", message)
+        send_websocket_notification(user.id, data_notif)

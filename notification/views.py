@@ -21,13 +21,16 @@ from users.models import ProfilUser
 # Battery
 from battery.models import Battery
 from battery.models import BatteryData
-from battery.models import BatteryPlanning
-from battery.models import BatteryReference
-from battery.models import BatteryRelaiState
+# from battery.models import BatteryPlanning
+# from battery.models import BatteryReference
+# from battery.models import BatteryRelaiState
 
 # prise
-from prise.models import Prise
+# from prise.models import Prise
 from prise.models import PriseData
+
+# panneau
+from panneau.models import PanneauData
 
 # serializer
 from .serializers import NotificationSerializer
@@ -291,4 +294,62 @@ def notify_prise_data(sender, instance, created, **kwargs):
     # Ajout des notifications au système
     for message in messages:
         data_notif = create_notification_serializer(user, "Prise", message)
+        send_websocket_notification(user.id, data_notif)
+
+
+# ==================================================PANNEAU SOLAR =================================
+@receiver(post_save, sender=PanneauData)
+def notify_panneau_data(sender, instance, created, **kwargs):
+    if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
+        return
+
+    panneau = instance.panneau
+    user = panneau.module.user
+    if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer
+        return
+
+    messages = []
+
+    # Production d'energie anormale
+    if instance.production:
+        production = float(instance.production)
+        puissance_nominale = 300  # Exemple: Valeur par défaut pour un panneau de 300W
+        heures_ensoleillement = 5  # Valeur par défaut pour Madagascar
+        production_moyenne = (puissance_nominale * heures_ensoleillement) / 1000  # En kWh
+        seuil_critique = (production_moyenne * 30) / 100
+
+        if production == 0:
+            messages.append(
+                "Attention : Aucune production solaire détectée en plein jour. Vérifiez votre installation pour une éventuelle panne ou un problème majeur."
+            )
+        elif production < seuil_critique:
+            messages.append(
+                "Une baisse de production des panneaux solaires est observée au cours de la journée. Cela peut être dû à un ensoleillement insuffisant ou à l'accumulation de particules de poussière réduisant leur efficacité."
+            )
+
+    # Problèmes de connectivité
+    if instance.updatedAt and (instance.updatedAt - instance.createdAt).seconds > 3600:
+        messages.append(
+            "Attention : Perte de communication avec le panneau solaire. Veuillez vérifier votre système de monitoring."
+        )
+
+    # Température inhabituelle (si un capteur de température est intégré)
+    if hasattr(instance, 'temperature') and instance.temperature:
+        temperature = float(instance.temperature)
+        if temperature >= 70:
+            messages.append(
+                "Attention : Température inhabituelle détectée sur le panneau solaire, risque de points chauds. Vérifiez rapidement pour éviter tout dommage."
+            )
+
+    # Accumulation de poussière ou saleté (si un capteur est intégré)
+    if hasattr(instance, 'dust_level') and instance.dust_level:
+        dust_level = float(instance.dust_level)
+        if dust_level > 70:  # Exemple de seuil
+            messages.append(
+                "Attention : Une accumulation importante de poussière, de saleté ou de neige a été détectée sur le panneau solaire. Nettoyez pour optimiser la production."
+            )
+
+    # Envoi des notifications
+    for message in messages:
+        data_notif = create_notification_serializer(user, "Panneau", message)
         send_websocket_notification(user.id, data_notif)

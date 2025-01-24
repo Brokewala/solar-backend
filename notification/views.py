@@ -63,10 +63,34 @@ def send_websocket_notification(user_id, data_notif):
 def read_notification(request,id_notif):
     try:
         notif = Notification.objects.get(id=id_notif)
+        notif.read=True
+        notif.save()
         serializer = NotificationSerializer(notif, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Notification.DoesNotExist:
         return Response({"message":"notification not found"},status=status.HTTP_404_NOT_FOUND)
+
+@api_view(["DELETE"])
+# @permission_classes([IsAuthenticated])
+def delete_notification(request,id_notif):
+    try:
+        notif = Notification.objects.get(id=id_notif)
+        notif.delete()
+        return Response({"message":"notification est supprimer"}, status=status.HTTP_204_NO_CONTENT)
+    except Notification.DoesNotExist:
+        return Response({"message":"notification not found"},status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(["PUT"])
+# @permission_classes([IsAuthenticated])
+def read_all_notification(request,user_id):
+    notif_data = Notification.objects.filter(user__id=user_id).order_by("-createdAt")
+    for notif in notif_data:
+        notif["read"]=True
+        notif.save()
+    serializer = NotificationSerializer(notif_data, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
 
  
 @api_view(["GET"])

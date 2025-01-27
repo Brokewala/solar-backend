@@ -136,6 +136,7 @@ class ModulesAPIView(APIView):
 
     def post(self, request):
         gr_code = request.FILES.get("gr_code")
+        reference = request.data.get("reference")
         identifiant = request.data.get("identifiant")
         password = request.data.get("password")
         user = request.data.get("user")
@@ -156,6 +157,10 @@ class ModulesAPIView(APIView):
         module = Modules.objects.create(user=user_value)
         # save into database
         module.save()
+        if reference:
+            module.reference = reference
+            module.save()
+            
         #  password
         if password:
             module.password = password
@@ -182,20 +187,21 @@ class ModulesAPIView(APIView):
     def put(self, request, module_id):
         module = self.get_object(module_id=module_id)
         # variables
-        gr_code = request.FILES.get("gr_code")
+        # gr_code = request.FILES.get("gr_code")
         identifiant = request.data.get("identifiant")
         password = request.data.get("password")
         user = request.data.get("user")
+        reference = request.data.get("reference")
 
         #  gr_code
-        if gr_code:
-            module.gr_code = gr_code
-            module.save()
-
-        #  gr_code
-        # if name:
-        #     module.name = name
+        # if gr_code:
+        #     module.gr_code = gr_code
         #     module.save()
+
+        #  reference
+        if reference:
+            module.reference = reference
+            module.save()
 
         #  gr_code
         if identifiant:

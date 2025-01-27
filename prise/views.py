@@ -75,11 +75,19 @@ class PriseAPIView(APIView):
         name = request.data.get("name")
         voltage = request.data.get("voltage")
         module = request.data.get("module")
+        
 
         if module is None or name is None or voltage is None:
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
+            
+         # module
+        if Prise.objects.filter(module__id=module).exists():
+            return Response(
+                {"error": "prise already existe"}, status=status.HTTP_400_BAD_REQUEST
+            )
+            
 
         # get module
         module_data = get_object_or_404(Modules, id=module)

@@ -81,6 +81,12 @@ class PanneauAPIView(APIView):
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        # module
+        if Panneau.objects.filter(module__id=module).exists():
+            return Response(
+                {"error": "panneau already existe"}, status=status.HTTP_400_BAD_REQUEST
+            )
+            
         # get module
         module_data = get_object_or_404(Modules, id=module)
 

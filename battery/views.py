@@ -51,7 +51,7 @@ def get_all_battery(request):
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_battery_by_module(request, module_id):
-    battery = Battery.objects.filter(module__id=module_id).first()
+    battery = Battery.objects.get(module__id=module_id)
     serializer = BatterySerializer(battery, many=False)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -77,6 +77,12 @@ class BatteryAPIView(APIView):
         if module is None or marque is None or puissance is None or voltage is None:
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+         # module
+        if Battery.objects.filter(module__id=module).exists():
+            return Response(
+                {"error": "batterie already existe"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # get module

@@ -52,19 +52,25 @@ def create_module_all(request):
     name_prise = request.data.get("name_prise")
     voltage_prise = request.data.get("voltage_prise")
 
-    if not [
-        user_id,
-        puissance_battery,
-        voltage_battery,
-        marque_battery,
-        puissance_panneau,
-        voltage_panneau,
-        marque_panneau,
-        name_prise,
-        voltage_prise,
-    ]:
+  # Check for missing or empty fields
+    required_fields = {
+        "user_id": user_id,
+        "puissance_battery": puissance_battery,
+        "voltage_battery": voltage_battery,
+        "marque_battery": marque_battery,
+        "puissance_panneau": puissance_panneau,
+        "voltage_panneau": voltage_panneau,
+        "marque_panneau": marque_panneau,
+        "name_prise": name_prise,
+        "voltage_prise": voltage_prise,
+    }
+
+    missing_fields = [key for key, value in required_fields.items() if not value]
+
+    if missing_fields:
         return Response(
-            {"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST
+            {"error": "Missing or empty required fields", "fields": missing_fields},
+            status=status.HTTP_400_BAD_REQUEST
         )
     
     # create module

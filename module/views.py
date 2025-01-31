@@ -127,6 +127,19 @@ def get_one_module_by_user(request, user_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+#  get module by reference
+@api_view(['GET'])
+def get_module_by_reference(request, reference):
+    try:
+        module = Modules.objects.get(reference=reference)
+        serializer = ModulesSerializer(module)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Modules.DoesNotExist:
+        return Response(
+            {"error": "Module not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
 
 # Modules APIView
 class ModulesAPIView(APIView):

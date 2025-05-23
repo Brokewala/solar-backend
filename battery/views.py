@@ -997,13 +997,13 @@ def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week
             createdAt__range=(start_of_day, end_of_day),
         )
         .values("createdAt__hour")
-        .annotate(
-            total_tension=Sum(Cast("tension", FloatField())),
-            total_puissance=Sum(Cast("puissance", FloatField())),
-            total_courant=Sum(Cast("courant", FloatField())),
-            total_energy=Sum(Cast("energy", FloatField())),
-            total_pourcentage=Sum(Cast("pourcentage", FloatField())),
-        )
+        # .annotate(
+        #     total_tension=Sum(Cast("tension", FloatField())),
+        #     total_puissance=Sum(Cast("puissance", FloatField())),
+        #     total_courant=Sum(Cast("courant", FloatField())),
+        #     total_energy=Sum(Cast("energy", FloatField())),
+        #     total_pourcentage=Sum(Cast("pourcentage", FloatField())),
+        # )
         .order_by("createdAt__hour")
     )
 

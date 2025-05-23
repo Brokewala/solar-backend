@@ -938,22 +938,120 @@ def get_weekly_battery_data_for_month(request, module_id, year, month):
     return Response(response_data)
 
 
+# @api_view(["GET"])
+# def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week):
+#     """
+#     Retrieve battery data for a specific day (e.g., Saturday) of a given week number.
+#     The response will return hours as labels and corresponding data for fields like
+#     tension, puissance, courant, energy, and pourcentage.
+#     """
+#     try:
+#         week_number = int(week_number)  # Conversion en entier
+#     except ValueError:
+#         return Response({"error": "week_number must be an integer."}, status=400)
+
+#     # Traduction des jours de la semaine (français -> anglais)
+#     french_to_english_days = {
+#         "lundi": "Monday",
+#         "mardi": "Tuesday",
+#         "mercredi": "Wednesday",
+#         "jeudi": "Thursday",
+#         "vendredi": "Friday",
+#         "samedi": "Saturday",
+#         "dimanche": "Sunday",
+#     }
+
+#     # Traduire le jour en anglais
+#     day_of_week = french_to_english_days.get(day_of_week.lower())
+#     if not day_of_week:
+#         return Response(
+#             {"error": "Invalid day_of_week. Please provide a valid day in French."},
+#             status=400,
+#         )
+
+#     # Calculer la date du premier jour de l'année
+#     first_day_of_year = datetime(datetime.today().year, 1, 1)
+
+#     # Ajuster pour commencer la semaine un lundi si ce n'est pas le cas
+#     if first_day_of_year.weekday() != 0:  # 0 = lundi
+#         first_day_of_year -= timedelta(days=first_day_of_year.weekday())
+
+#     # Calculer la date du début de la semaine demandée
+#     start_of_week = first_day_of_year + timedelta(weeks=week_number - 1)
+
+#     # Trouver l'index du jour spécifié
+#     days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+#     day_of_week_index = days_of_week.index(day_of_week)
+
+#     # Calculer la date cible
+#     target_day = start_of_week + timedelta(days=day_of_week_index)
+
+#     # Plage de temps pour inclure toutes les heures de la journée cible
+#     start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
+#     end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
+
+#     # Filtrer les données de batterie pour cette plage horaire
+#     data = (
+#         BatteryData.objects.filter(
+#             battery__module_id=module_id,
+#             createdAt__range=(start_of_day, end_of_day),
+#         )
+#         .values("createdAt__hour")
+#         .order_by("createdAt__hour")
+#         # .annotate(
+#         #     total_tension=Sum(Cast("tension", FloatField())),
+#         #     total_puissance=Sum(Cast("puissance", FloatField())),
+#         #     total_courant=Sum(Cast("courant", FloatField())),
+#         #     total_energy=Sum(Cast("energy", FloatField())),
+#         #     total_pourcentage=Sum(Cast("pourcentage", FloatField())),
+#         # )
+#     )
+
+#     # Créer une liste des données horaires
+#     result = []
+#     for hour in range(24):
+#         hour_data = next(
+#             (
+#                 {
+#                     "hour": hour,
+#                     "tension": entry["total_tension"] or 0,
+#                     "puissance": entry["total_puissance"] or 0,
+#                     "courant": entry["total_courant"] or 0,
+#                     "energy": entry["total_energy"] or 0,
+#                     "pourcentage": entry["total_pourcentage"] or 0,
+#                 }
+#                 for entry in data
+#                 if entry["createdAt__hour"] == hour
+#             ),
+#             {
+#                 "hour": hour,
+#                 "tension": 0,
+#                 "puissance": 0,
+#                 "courant": 0,
+#                 "energy": 0,
+#                 "pourcentage": 0,
+#             },
+#         )
+#         result.append(hour_data)
+
+#     return Response(result)
+
+
 @api_view(["GET"])
 def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week):
     """
-    Retrieve battery data for a specific day (e.g., Saturday) of a given week number.
-    The response will return hours as labels and corresponding data for fields like
-    tension, puissance, courant, energy, and pourcentage.
+    Retrieve battery data for a specific day with real timestamps.
+    Returns all individual data points with their exact timestamps.
     """
     try:
-        week_number = int(week_number)  # Conversion en entier
+        week_number = int(week_number)
     except ValueError:
         return Response({"error": "week_number must be an integer."}, status=400)
 
     # Traduction des jours de la semaine (français -> anglais)
     french_to_english_days = {
         "lundi": "Monday",
-        "mardi": "Tuesday",
+        "mardi": "Tuesday", 
         "mercredi": "Wednesday",
         "jeudi": "Thursday",
         "vendredi": "Friday",
@@ -990,48 +1088,39 @@ def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week
     start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
     end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
 
-    # Filtrer les données de batterie pour cette plage horaire
-    data = (
-        BatteryData.objects.filter(
-            battery__module_id=module_id,
-            createdAt__range=(start_of_day, end_of_day),
-        )
-        .values("createdAt__hour")
-        # .annotate(
-        #     total_tension=Sum(Cast("tension", FloatField())),
-        #     total_puissance=Sum(Cast("puissance", FloatField())),
-        #     total_courant=Sum(Cast("courant", FloatField())),
-        #     total_energy=Sum(Cast("energy", FloatField())),
-        #     total_pourcentage=Sum(Cast("pourcentage", FloatField())),
-        # )
-        .order_by("createdAt__hour")
+    # Récupérer toutes les données de batterie pour cette journée
+    battery_data = BatteryData.objects.filter(
+        battery__module_id=module_id,
+        createdAt__range=(start_of_day, end_of_day),
+    ).order_by("createdAt").values(
+        "createdAt", "tension", "puissance", "courant", "energy", "pourcentage"
     )
 
-    # Créer une liste des données horaires
+    # Convertir les données au format souhaité
     result = []
-    for hour in range(24):
-        hour_data = next(
-            (
-                {
-                    "hour": hour,
-                    "tension": entry["total_tension"] or 0,
-                    "puissance": entry["total_puissance"] or 0,
-                    "courant": entry["total_courant"] or 0,
-                    "energy": entry["total_energy"] or 0,
-                    "pourcentage": entry["total_pourcentage"] or 0,
-                }
-                for entry in data
-                if entry["createdAt__hour"] == hour
-            ),
-            {
-                "hour": hour,
-                "tension": 0,
-                "puissance": 0,
-                "courant": 0,
-                "energy": 0,
-                "pourcentage": 0,
-            },
-        )
-        result.append(hour_data)
+    for entry in battery_data:
+        # Convertir le timestamp en heure décimale (ex: 14.5 pour 14h30)
+        created_at = entry["createdAt"]
+        hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+        
+        result.append({
+            "timestamp": created_at.isoformat(),
+            "hour_decimal": round(hour_decimal, 2),
+            "hour_label": f"{created_at.hour:02d}:{created_at.minute:02d}",
+            "tension": float(entry["tension"]) if entry["tension"] else 0,
+            "puissance": float(entry["puissance"]) if entry["puissance"] else 0,
+            "courant": float(entry["courant"]) if entry["courant"] else 0,
+            "energy": float(entry["energy"]) if entry["energy"] else 0,
+            "pourcentage": float(entry["pourcentage"]) if entry["pourcentage"] else 0,
+        })
 
-    return Response(result)
+    # Informations supplémentaires
+    response_data = {
+        "date": target_day.strftime("%Y-%m-%d"),
+        "day_name": day_of_week,
+        "week_number": week_number,
+        "total_records": len(result),
+        "data": result
+    }
+
+    return Response(response_data)

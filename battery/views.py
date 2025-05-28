@@ -13,7 +13,7 @@ from datetime import timezone
 # django
 from datetime import timedelta
 from datetime import datetime
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Avg
 from django.db.models.functions import Coalesce
 from django.db.models.functions import ExtractYear
 from django.db.models import Q
@@ -78,7 +78,7 @@ class BatteryAPIView(APIView):
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
-        
+
          # module
         if Battery.objects.filter(module__id=module).exists():
             return Response(
@@ -343,7 +343,7 @@ class BatteryPlanningPIView(APIView):
         if done:
             battery_data.done = done
             battery_data.save()
-        
+
         #  date
         if date:
             battery_data.date = date
@@ -727,7 +727,7 @@ def get_couleur_batterie_by_id_module(request, module_id):
 # listebatteryDataByDateAndIdModule
 @api_view(["GET"])
 def liste_batterie_data_by_date_and_id_module(request, module_id,date):
- 
+
     # Validation des paramètres de date
     if not date :
         return Response(
@@ -772,7 +772,7 @@ def liste_batterie_data_by_date_and_id_module(request, module_id,date):
 # listeDureebatteryMensuelleByIdModuleAndMonth
 @api_view(["GET"])
 def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id):
-     
+
     today = datetime.today()
     current_year = today.year
     current_month = today.month
@@ -1040,8 +1040,8 @@ def get_weekly_battery_data_for_month(request, module_id, year, month):
 @api_view(["GET"])
 def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week):
     """
-    Retrieve battery data for a specific day with real timestamps.
-    Returns all individual data points with their exact timestamps.
+    Retrieve real battery data for a specific day with exact timestamps.
+    Returns all individual data points as inserted by users for accurate daily visualization.
     """
     try:
         week_number = int(week_number)
@@ -1051,7 +1051,104 @@ def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week
     # Traduction des jours de la semaine (français -> anglais)
     french_to_english_days = {
         "lundi": "Monday",
-        "mardi": "Tuesday", 
+        "mardi": "Tuesday",
+        "mercredi": "Wednesday",
+        "jeudi": "Thursday",
+        "vendredi": "Friday",
+        "samedi": "Saturday",
+        "dimanche": "Sunday",
+    }
+
+    # Traduire le jour en anglais
+    day_of_week = french_to_english_days.get(day_of_week.lower())
+    if not day_of_week:
+        return Response(
+            {"error": "Invalid day_of_week. Please provide a valid day in French."},
+            status=400,
+        )
+
+    # Calculer la date du premier jour de l'année
+    first_day_of_year = datetime(datetime.today().year, 1, 1)
+
+    # Ajuster pour commencer la semaine un lundi si ce n'est pas le cas
+    if first_day_of_year.weekday() != 0:  # 0 = lundi
+        first_day_of_year -= timedelta(days=first_day_of_year.weekday())
+
+    # Calculer la date du début de la semaine demandée
+    start_of_week = first_day_of_year + timedelta(weeks=week_number - 1)
+
+    # Trouver l'index du jour spécifié
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    day_of_week_index = days_of_week.index(day_of_week)
+
+    # Calculer la date cible
+    target_day = start_of_week + timedelta(days=day_of_week_index)
+
+    # Plage de temps pour inclure toutes les heures de la journée cible
+    start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
+    end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
+
+    # Récupérer toutes les données réelles de batterie pour cette journée
+    battery_data = BatteryData.objects.filter(
+        battery__module_id=module_id,
+        createdAt__range=(start_of_day, end_of_day),
+    ).order_by("createdAt").values(
+        "createdAt", "tension", "puissance", "courant", "energy", "pourcentage"
+    )
+
+    # Convertir les données au format professionnel pour les graphiques
+    result = []
+    for entry in battery_data:
+        created_at = entry["createdAt"]
+
+        # Calculer l'heure décimale pour un affichage précis
+        hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+
+        # Formatage professionnel des données
+        data_point = {
+            "timestamp": created_at.isoformat(),
+            "hour_decimal": round(hour_decimal, 3),
+            "hour_label": created_at.strftime("%H:%M:%S"),
+            "date_label": created_at.strftime("%d/%m/%Y"),
+            "tension": float(entry["tension"]) if entry["tension"] else 0.0,
+            "puissance": float(entry["puissance"]) if entry["puissance"] else 0.0,
+            "courant": float(entry["courant"]) if entry["courant"] else 0.0,
+            "energy": float(entry["energy"]) if entry["energy"] else 0.0,
+            "pourcentage": float(entry["pourcentage"]) if entry["pourcentage"] else 0.0,
+        }
+        result.append(data_point)
+
+    # Métadonnées professionnelles
+    response_data = {
+        "date": target_day.strftime("%Y-%m-%d"),
+        "day_name": day_of_week,
+        "week_number": week_number,
+        "total_records": len(result),
+        "data_range": {
+            "start": start_of_day.isoformat(),
+            "end": end_of_day.isoformat()
+        },
+        "data": result
+    }
+
+    return Response(response_data)
+
+
+@api_view(["GET"])
+def get_detailed_battery_data_for_week(request, module_id, week_number, day_of_week):
+    """
+    Retrieve detailed battery data for a specific day with real timestamps.
+    Returns all individual data points with their exact timestamps for ImprovedDailyLine component.
+    """
+    try:
+        week_number = int(week_number)
+    except ValueError:
+        return Response({"error": "week_number must be an integer."}, status=400)
+
+    # Traduction des jours de la semaine (français -> anglais)
+    french_to_english_days = {
+        "lundi": "Monday",
+        "mardi": "Tuesday",
         "mercredi": "Wednesday",
         "jeudi": "Thursday",
         "vendredi": "Friday",
@@ -1102,7 +1199,7 @@ def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week
         # Convertir le timestamp en heure décimale (ex: 14.5 pour 14h30)
         created_at = entry["createdAt"]
         hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
-        
+
         result.append({
             "timestamp": created_at.isoformat(),
             "hour_decimal": round(hour_decimal, 2),
@@ -1114,13 +1211,4 @@ def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week
             "pourcentage": float(entry["pourcentage"]) if entry["pourcentage"] else 0,
         })
 
-    # Informations supplémentaires
-    response_data = {
-        "date": target_day.strftime("%Y-%m-%d"),
-        "day_name": day_of_week,
-        "week_number": week_number,
-        "total_records": len(result),
-        "data": result
-    }
-
-    return Response(response_data)
+    return Response(result)

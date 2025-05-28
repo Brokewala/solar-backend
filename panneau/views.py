@@ -86,7 +86,7 @@ class PanneauAPIView(APIView):
             return Response(
                 {"error": "panneau already existe"}, status=status.HTTP_400_BAD_REQUEST
             )
-            
+
         # get module
         module_data = get_object_or_404(Modules, id=module)
 
@@ -586,24 +586,24 @@ def create_relai_state_auto_panneau(sender, instance, created, **kwargs):
 # ===================mobile===========================
 @api_view(["GET"])
 def couleur_by_module(request,module_id):
-    
+
     # Check if module_id is provided
     if not module_id:
         return Response({"detail": "Module ID is required"}, status=400)
-    
+
     # Filtering by module ID
     panneaux = PanneauRelaiState.objects.filter(panneau__module_id=module_id).first()
-    serializer = PanneauRelaiStateSerializer(panneaux, many=False)    
+    serializer = PanneauRelaiStateSerializer(panneaux, many=False)
     return Response(serializer.data,status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
 def get_production_panneau_annuelle(request,module_id):
-    
+
     # Check if module_id is provided
     if not module_id:
         return Response({"detail": "Module ID is required"}, status=400)
-    
+
     # Filter PanneauData by module_id via related Panneau
     try:
         # Récupérer le panneau spécifié
@@ -770,9 +770,8 @@ def get_weekly_panneau_data_for_month(request, module_id, year, month):
 @api_view(["GET"])
 def get_daily_panneau_data_for_week(request, module_id, week_number, day_of_week):
     """
-    Retrieve Panneau data for a specific day (e.g., Saturday) of a given week number.
-    The response will return hours as labels and corresponding data for fields like
-    tension, puissance, courant, and production.
+    Retrieve real Panneau data for a specific day with exact timestamps.
+    Returns all individual data points as inserted by users for accurate daily visualization.
     """
     try:
         week_number = int(week_number)  # Conversion en entier
@@ -818,46 +817,46 @@ def get_daily_panneau_data_for_week(request, module_id, week_number, day_of_week
     start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
     end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
 
-    # Récupérer les données
-    #  Cast("tension", FloatField())
-    data = (
-        PanneauData.objects.filter(
-            panneau__module_id=module_id,
-            createdAt__range=(start_of_day, end_of_day),
-        )
-        .values("createdAt__hour")
-        .annotate(
-            total_tension=Sum(Cast("tension", FloatField())),
-            total_puissance=Sum(Cast("puissance", FloatField())),
-            total_courant=Sum(Cast("courant", FloatField())),
-            total_production=Sum(Cast("production", FloatField())),
-        )
-        .order_by("createdAt__hour")
+    # Récupérer toutes les données réelles de panneau pour cette journée
+    panneau_data = PanneauData.objects.filter(
+        panneau__module_id=module_id,
+        createdAt__range=(start_of_day, end_of_day),
+    ).order_by("createdAt").values(
+        "createdAt", "tension", "puissance", "courant", "production"
     )
 
-    # Structure des données horaires
+    # Convertir les données au format professionnel pour les graphiques
     result = []
-    for hour in range(24):
-        hour_data = next(
-            (
-                {
-                    "hour": hour,
-                    "tension": entry["total_tension"] or 0,
-                    "puissance": entry["total_puissance"] or 0,
-                    "courant": entry["total_courant"] or 0,
-                    "production": entry["total_production"] or 0,
-                }
-                for entry in data
-                if entry["createdAt__hour"] == hour
-            ),
-            {
-                "hour": hour,
-                "tension": 0,
-                "puissance": 0,
-                "courant": 0,
-                "production": 0,
-            },
-        )
-        result.append(hour_data)
+    for entry in panneau_data:
+        created_at = entry["createdAt"]
 
-    return Response(result)
+        # Calculer l'heure décimale pour un affichage précis
+        hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+
+        # Formatage professionnel des données
+        data_point = {
+            "timestamp": created_at.isoformat(),
+            "hour_decimal": round(hour_decimal, 3),
+            "hour_label": created_at.strftime("%H:%M:%S"),
+            "date_label": created_at.strftime("%d/%m/%Y"),
+            "tension": float(entry["tension"]) if entry["tension"] else 0.0,
+            "puissance": float(entry["puissance"]) if entry["puissance"] else 0.0,
+            "courant": float(entry["courant"]) if entry["courant"] else 0.0,
+            "production": float(entry["production"]) if entry["production"] else 0.0,
+        }
+        result.append(data_point)
+
+    # Métadonnées professionnelles
+    response_data = {
+        "date": target_day.strftime("%Y-%m-%d"),
+        "day_name": day_of_week,
+        "week_number": week_number,
+        "total_records": len(result),
+        "data_range": {
+            "start": start_of_day.isoformat(),
+            "end": end_of_day.isoformat()
+        },
+        "data": result
+    }
+
+    return Response(response_data)

@@ -894,3 +894,50 @@ def get_daily_prise_data_for_week(request, module_id, week_number, day_of_week):
 
     return Response(response_data)
 
+
+@api_view(["GET"])
+def get_prise_relay_state_by_module(request, module_id):
+    """
+    Récupère l'état du relais de la prise pour un module donné
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        # Récupérer la prise associée au module
+        prise = Prise.objects.filter(module=module).first()
+
+        if not prise:
+            return Response({
+                "couleur": "gray",
+                "active": False,
+                "message": "Aucune prise trouvée pour ce module"
+            }, status=status.HTTP_200_OK)
+
+        # Récupérer l'état du relais de la prise
+        relay_state = PriseRelaiState.objects.filter(prise=prise).first()
+
+        if not relay_state:
+            # Créer un état par défaut si aucun n'existe
+            relay_state = PriseRelaiState.objects.create(
+                prise=prise,
+                active=False,
+                state="low",
+                couleur="red",
+                valeur="0"
+            )
+
+        return Response({
+            "couleur": relay_state.couleur,
+            "active": relay_state.active,
+            "state": relay_state.state,
+            "valeur": relay_state.valeur,
+            "prise_id": prise.id
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "Une erreur s'est produite lors de la récupération de l'état du relais",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

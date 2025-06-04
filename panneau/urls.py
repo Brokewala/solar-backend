@@ -60,5 +60,7 @@ urlpatterns = [
     path('production-week/<str:module_id>/', views.get_panel_consumption_by_week, name='production-semaine'),
     path('panneau-data-weekly/<str:module_id>/<str:year>/<str:month>/', views.get_weekly_panneau_data_for_month),
     path('panneau-data-daily/<str:module_id>/<str:week_number>/<str:day_of_week>/', views.get_daily_panneau_data_for_week),
+    # API pour récupérer l'état du relais par module
+    path('panneau-relay-state/<str:module_id>/', views.get_panneau_relay_state_by_module, name='get_panneau_relay_state_by_module'),
 
 ]

@@ -58,6 +58,12 @@ urlpatterns = [
         views.get_couleur_prise_by_id_module,
         name="prise-colors",  # Alias pour compatibilité frontend
     ),
+    # API pour récupérer l'état du relais par module
+    path(
+        "prise-relay-state/<str:module_id>/",
+        views.get_prise_relay_state_by_module,
+        name="get_prise_relay_state_by_module",
+    ),
     path(
         "consommation-annuelle/<str:module_id>/",
         views.get_consommation_prise_annuelle,

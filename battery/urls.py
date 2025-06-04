@@ -78,5 +78,7 @@ urlpatterns = [
     # Nouvelles APIs pour niveau de batterie et production mensuelle
     path('battery-level/<str:module_id>/', views.get_current_battery_level, name='get_current_battery_level'),
     path('monthly-production/<str:module_id>/', views.get_monthly_production_summary, name='get_monthly_production_summary'),
+    # API pour récupérer l'état du relais par module
+    path('battery-relay-state/<str:module_id>/', views.get_battery_relay_state_by_module, name='get_battery_relay_state_by_module'),
 
 ]

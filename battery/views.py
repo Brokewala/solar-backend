@@ -51,9 +51,15 @@ def get_all_battery(request):
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_battery_by_module(request, module_id):
-    battery = Battery.objects.get(module__id=module_id)
-    serializer = BatterySerializer(battery, many=False)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    try:
+        battery = Battery.objects.get(module__id=module_id)
+        serializer = BatterySerializer(battery, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Battery.DoesNotExist:
+        return Response(
+            {"error": "battery not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 
 # Battery APIView
@@ -1378,5 +1384,52 @@ def get_monthly_production_summary(request, module_id):
     except Exception as e:
         return Response({
             "error": "Erreur interne du serveur",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+def get_battery_relay_state_by_module(request, module_id):
+    """
+    Récupère l'état du relais de la batterie pour un module donné
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        # Récupérer la batterie associée au module
+        battery = Battery.objects.filter(module=module).first()
+
+        if not battery:
+            return Response({
+                "couleur": "gray",
+                "active": False,
+                "message": "Aucune batterie trouvée pour ce module"
+            }, status=status.HTTP_200_OK)
+
+        # Récupérer l'état du relais de la batterie
+        relay_state = BatteryRelaiState.objects.filter(battery=battery).first()
+
+        if not relay_state:
+            # Créer un état par défaut si aucun n'existe
+            relay_state = BatteryRelaiState.objects.create(
+                battery=battery,
+                active=False,
+                state="low",
+                couleur="red",
+                valeur="0"
+            )
+
+        return Response({
+            "couleur": relay_state.couleur,
+            "active": relay_state.active,
+            "state": relay_state.state,
+            "valeur": relay_state.valeur,
+            "battery_id": battery.id
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "Une erreur s'est produite lors de la récupération de l'état du relais",
             "details": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

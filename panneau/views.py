@@ -871,3 +871,52 @@ def get_daily_panneau_data_for_week(request, module_id, week_number, day_of_week
     }
 
     return Response(response_data)
+
+
+@api_view(["GET"])
+def get_panneau_relay_state_by_module(request, module_id):
+    """
+    Récupère l'état du relais du panneau pour un module donné
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        # Récupérer le panneau associé au module
+        panneau = Panneau.objects.filter(module=module).first()
+
+        if not panneau:
+            return Response({
+                "couleur": "gray",
+                "active": False,
+                "message": "Aucun panneau trouvé pour ce module"
+            }, status=status.HTTP_200_OK)
+
+        # Récupérer l'état du relais du panneau
+        relay_state = PanneauRelaiState.objects.filter(panneau=panneau).first()
+
+        if not relay_state:
+            # Créer un état par défaut si aucun n'existe
+            relay_state = PanneauRelaiState.objects.create(
+                panneau=panneau,
+                active=False,
+                state="low",
+                couleur="red",
+                valeur="0"
+            )
+
+        return Response({
+            "couleur": relay_state.couleur,
+            "active": relay_state.couleur == "green",
+            "state": relay_state.state,
+            "valeur": relay_state.valeur,
+            "panneau_id": str(panneau.id)
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "Une erreur s'est produite lors de la récupération de l'état du relais",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

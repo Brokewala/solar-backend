@@ -23,6 +23,10 @@ urlpatterns = [
         "panneau-planning/<str:panneau_id>/panneau",
         views.get_one_PanneauPlanning_by_panneau,
     ),
+    path(
+        "panneau-planning/<str:module_id>/module",
+        views.get_PanneauPlanning_by_module,
+    ),
     
     # PanneauRelaiState
     path("panneau-relaistate", views.PanneauRelaiStateAPIView.as_view()),
@@ -51,6 +55,7 @@ urlpatterns = [
     ),
     # =====================panneau=====================
     path('panneau-couleur-by-module/<str:module_id>/', views.couleur_by_module, name='couleur-by-module'),
+    path('panneau-colors/<str:module_id>/', views.couleur_by_module, name='panneau-colors'),  # Alias pour compatibilité frontend
     path('production-annuelle/<str:module_id>/', views.get_production_panneau_annuelle, name='production-annuelle'),
     path('production-week/<str:module_id>/', views.get_panel_consumption_by_week, name='production-semaine'),
     path('panneau-data-weekly/<str:module_id>/<str:year>/<str:month>/', views.get_weekly_panneau_data_for_month),

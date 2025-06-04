@@ -245,6 +245,17 @@ def get_one_PanneauPlanning_by_panneau(request, panneau_id):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+# plannig by module
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def get_PanneauPlanning_by_module(request, module_id):
+    module_data = get_object_or_404(Modules, id=module_id)
+    panneau_value = get_object_or_404(Panneau, module=module_data.id)
+    panneau_data = PanneauPlanning.objects.filter(panneau__id=panneau_value.id)
+    serializer = PanneauPlanningSerializer(panneau_data, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 #  PanneauPlanning PanneauPlanningSerializer APIView
 class PanneauPlanningPIView(APIView):
 

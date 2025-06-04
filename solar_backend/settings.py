@@ -191,12 +191,19 @@ CORS_ALLOW_HEADERS = (
 )
 CORS_ALLOW_ALL_ORIGINS = True
 
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://localhost:4200",
-#     "http://localhost:5173",
-#     "https://shimmering-compassion-production.up.railway.app"
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:4200",
+    "http://localhost:5173",
+    "https://shimmering-compassion-production.up.railway.app",
+    "exp://sttlt3y-anonymous-8081.exp.direct",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:8001",
+    "http://localhost:8081",
+    "http://192.168.x.x:8081",
+    "http://172.20.10.2:8000"
+
+]
 # # send email setup
 # 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

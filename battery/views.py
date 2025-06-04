@@ -1212,3 +1212,171 @@ def get_detailed_battery_data_for_week(request, module_id, week_number, day_of_w
         })
 
     return Response(result)
+
+
+@api_view(["GET"])
+def get_current_battery_level(request, module_id):
+    """
+    Récupère le niveau de batterie actuel pour un module donné
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        # Récupérer la batterie associée au module
+        battery = get_object_or_404(Battery, module=module)
+
+        # Récupérer la donnée la plus récente de la batterie
+        latest_battery_data = BatteryData.objects.filter(
+            battery=battery
+        ).order_by('-createdAt').first()
+
+        if not latest_battery_data:
+            return Response({
+                "level": 0,
+                "status": "no_data",
+                "message": "Aucune donnée de batterie disponible"
+            }, status=status.HTTP_200_OK)
+
+        # Calculer le niveau de batterie
+        battery_level = float(latest_battery_data.pourcentage) if latest_battery_data.pourcentage else 0
+
+        # Déterminer le statut basé sur le niveau
+        if battery_level >= 80:
+            battery_status = "excellent"
+        elif battery_level >= 60:
+            battery_status = "good"
+        elif battery_level >= 40:
+            battery_status = "medium"
+        elif battery_level >= 20:
+            battery_status = "low"
+        else:
+            battery_status = "critical"
+
+        response_data = {
+            "level": battery_level,
+            "status": battery_status,
+            "voltage": float(latest_battery_data.tension) if latest_battery_data.tension else 0,
+            "current": float(latest_battery_data.courant) if latest_battery_data.courant else 0,
+            "power": float(latest_battery_data.puissance) if latest_battery_data.puissance else 0,
+            "energy": float(latest_battery_data.energy) if latest_battery_data.energy else 0,
+            "last_update": latest_battery_data.createdAt.isoformat(),
+            "battery_info": {
+                "id": battery.id,
+                "marque": battery.marque,
+                "puissance": battery.puissance,
+                "voltage": battery.voltage,
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Modules.DoesNotExist:
+        return Response({
+            "error": "Module non trouvé"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Battery.DoesNotExist:
+        return Response({
+            "error": "Aucune batterie associée à ce module"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({
+            "error": "Erreur interne du serveur",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+def get_monthly_production_summary(request, module_id):
+    """
+    Récupère un résumé de la production mensuelle pour tous les composants d'un module
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        current_year = datetime.now().year
+        current_month = datetime.now().month
+
+        # Récupérer les données de production des panneaux
+        from panneau.models import PanneauData
+        panneau_production = PanneauData.objects.filter(
+            panneau__module=module,
+            createdAt__year=current_year,
+            createdAt__month=current_month
+        ).aggregate(
+            total_production=Sum(Cast("energy", FloatField()))
+        )
+
+        # Récupérer les données de consommation des prises
+        from prise.models import PriseData
+        prise_consumption = PriseData.objects.filter(
+            prise__module=module,
+            createdAt__year=current_year,
+            createdAt__month=current_month
+        ).aggregate(
+            total_consumption=Sum(Cast("energy", FloatField()))
+        )
+
+        # Récupérer les données de stockage des batteries
+        battery_storage = BatteryData.objects.filter(
+            battery__module=module,
+            createdAt__year=current_year,
+            createdAt__month=current_month
+        ).aggregate(
+            total_storage=Sum(Cast("energy", FloatField()))
+        )
+
+        # Calculer les totaux
+        total_production = panneau_production.get('total_production', 0) or 0
+        total_consumption = prise_consumption.get('total_consumption', 0) or 0
+        total_storage = battery_storage.get('total_storage', 0) or 0
+
+        # Calculer l'efficacité
+        efficiency = 0
+        if total_production > 0:
+            efficiency = ((total_production - total_consumption) / total_production) * 100
+
+        response_data = {
+            "month": current_month,
+            "year": current_year,
+            "production": {
+                "total": round(total_production, 2),
+                "unit": "kWh",
+                "source": "panneaux_solaires"
+            },
+            "consumption": {
+                "total": round(total_consumption, 2),
+                "unit": "kWh",
+                "source": "prises"
+            },
+            "storage": {
+                "total": round(total_storage, 2),
+                "unit": "kWh",
+                "source": "batteries"
+            },
+            "balance": {
+                "net": round(total_production - total_consumption, 2),
+                "efficiency": round(efficiency, 1),
+                "unit": "kWh"
+            },
+            "module_info": {
+                "id": module.id,
+                "name": getattr(module, 'name', 'Module'),
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Modules.DoesNotExist:
+        return Response({
+            "error": "Module non trouvé"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({
+            "error": "Erreur interne du serveur",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

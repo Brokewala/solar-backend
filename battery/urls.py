@@ -75,5 +75,8 @@ urlpatterns = [
     path('battery-data-weekly/<str:module_id>/<str:year>/<str:month>/', views.get_weekly_battery_data_for_month),
     path('battery-data-daily/<str:module_id>/<str:week_number>/<str:day_of_week>/', views.get_daily_battery_data_for_week),
     path('battery-data-detailed/<str:module_id>/<str:week_number>/<str:day_of_week>/', views.get_detailed_battery_data_for_week),
+    # Nouvelles APIs pour niveau de batterie et production mensuelle
+    path('battery-level/<str:module_id>/', views.get_current_battery_level, name='get_current_battery_level'),
+    path('monthly-production/<str:module_id>/', views.get_monthly_production_summary, name='get_monthly_production_summary'),
 
 ]

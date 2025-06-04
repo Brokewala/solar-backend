@@ -54,6 +54,11 @@ urlpatterns = [
         name="couleur-prise-by-module",
     ),
     path(
+        "prise-colors/<str:module_id>/",
+        views.get_couleur_prise_by_id_module,
+        name="prise-colors",  # Alias pour compatibilité frontend
+    ),
+    path(
         "consommation-annuelle/<str:module_id>/",
         views.get_consommation_prise_annuelle,
         name="consommation-annuelle",

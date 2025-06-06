@@ -147,39 +147,39 @@ class ReportCommentAPIView(APIView):
         sender = get_object_or_404(ProfilUser, id=sender_id)
         report = get_object_or_404(Report, id=report_id)
 
-        # create user
-        report_data = Report.objects.create(
+        # create comment
+        comment_data = ReportComment.objects.create(
             description=description,
             report=report,
             sender=sender,
         )
         # save into database
-        report_data.save()
+        comment_data.save()
 
-        serializer = ReportSerializer(report_data, many=False)
+        serializer = ReportCommentSerializer(comment_data, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get(self, request, comment_id):
-        report_data = self.get_object(comment_id=comment_id)
-        serializer = ReportSerializer(report_data, many=False)
+        comment_data = self.get_object(comment_id=comment_id)
+        serializer = ReportCommentSerializer(comment_data, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, comment_id):
-        report_data = self.get_object(comment_id=comment_id)
+        comment_data = self.get_object(comment_id=comment_id)
         # variables
         description = request.data.get("description")
 
         #  description
         if description:
-            report_data.description = description
-            report_data.save()
+            comment_data.description = description
+            comment_data.save()
 
-        serializer = ReportSerializer(report_data, many=False)
+        serializer = ReportCommentSerializer(comment_data, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request, comment_id):
-        report_data = self.get_object(comment_id=comment_id)
-        report_data.delete()
+        comment_data = self.get_object(comment_id=comment_id)
+        comment_data.delete()
         return Response(
             {"message": "report comment is deleted"}, status=status.HTTP_204_NO_CONTENT
         )
@@ -211,7 +211,7 @@ class ReportStateAPIView(APIView):
         state = request.data.get("state")
         value = request.data.get("value")
 
-        if value is None or state is None or value is None or report_id is None:
+        if value is None or state is None or report_id is None:
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -219,16 +219,16 @@ class ReportStateAPIView(APIView):
         # get 
         report = get_object_or_404(Report, id=report_id)
 
-        # create user
-        report_data = Report.objects.create(
+        # create report state
+        state_data = ReportState.objects.create(
             value=value,
             report=report,
             state=state,
         )
         # save into database
-        report_data.save()
+        state_data.save()
 
-        serializer = ReportStateSerializer(report_data, many=False)
+        serializer = ReportStateSerializer(state_data, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get(self, request, state_id):

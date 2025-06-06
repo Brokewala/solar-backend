@@ -28,5 +28,7 @@ urlpatterns = [
     path("signup/<str:user_id>", views.get_user_code_with_user_id),
     path("signup-verify-code", views.verify_code_of_user),
     path("signup-resend-code", views.resend_code_of_signup),
+    # profile update
+    path("update-profile", views.update_user_profile),
 
 ]

@@ -211,6 +211,7 @@ class ModulesAPIView(APIView):
         password = request.data.get("password")
         user = request.data.get("user")
         reference = request.data.get("reference")
+        active = request.data.get("active")
 
         #  gr_code
         # if gr_code:
@@ -218,18 +219,23 @@ class ModulesAPIView(APIView):
         #     module.save()
 
         #  reference
-        if reference:
+        if reference is not None:
             module.reference = reference
             module.save()
 
-        #  gr_code
-        if identifiant:
+        #  identifiant
+        if identifiant is not None:
             module.identifiant = identifiant
             module.save()
 
-        #  gr_code
-        if password:
+        #  password
+        if password is not None:
             module.password = password
+            module.save()
+
+        #  active status
+        if active is not None:
+            module.active = bool(active)
             module.save()
 
         #  user
@@ -246,6 +252,102 @@ class ModulesAPIView(APIView):
         module.delete()
         return Response(
             {"message": "module is deleted"}, status=status.HTTP_204_NO_CONTENT
+        )
+
+
+# Toggle module active status
+@api_view(["PATCH"])
+def toggle_module_active(request, module_id):
+    """
+    Bascule le statut actif/inactif d'un module
+    """
+    try:
+        module = Modules.objects.get(id=module_id)
+
+        # Basculer le statut active
+        module.active = not module.active
+        module.save()
+
+        serializer = ModulesSerializer(module, many=False)
+        return Response({
+            "message": f"Module {'activé' if module.active else 'désactivé'} avec succès",
+            "module": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    except Modules.DoesNotExist:
+        return Response(
+            {"error": "Module non trouvé"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+# Get module with all related elements (battery, panneau, prise)
+@api_view(["GET"])
+def get_module_with_elements(request, module_id):
+    """
+    Récupère un module avec tous ses éléments associés
+    """
+    try:
+        module = Modules.objects.get(id=module_id)
+
+        # Récupérer les éléments associés
+        try:
+            battery = Battery.objects.get(module_id=module_id)
+            battery_data = {
+                "id": battery.id,
+                "marque": battery.marque,
+                "puissance": battery.puissance,
+                "voltage": battery.voltage,
+                "module_id": battery.module_id,
+                "createdAt": battery.createdAt,
+                "updatedAt": battery.updatedAt,
+            }
+        except Battery.DoesNotExist:
+            battery_data = None
+
+        try:
+            panneau = Panneau.objects.get(module_id=module_id)
+            panneau_data = {
+                "id": panneau.id,
+                "marque": panneau.marque,
+                "puissance": panneau.puissance,
+                "voltage": panneau.voltage,
+                "module_id": panneau.module_id,
+                "createdAt": panneau.createdAt,
+                "updatedAt": panneau.updatedAt,
+            }
+        except Panneau.DoesNotExist:
+            panneau_data = None
+
+        try:
+            prise = Prise.objects.get(module_id=module_id)
+            prise_data = {
+                "id": prise.id,
+                "name": prise.name,
+                "voltage": prise.voltage,
+                "module_id": prise.module_id,
+                "createdAt": prise.createdAt,
+                "updatedAt": prise.updatedAt,
+            }
+        except Prise.DoesNotExist:
+            prise_data = None
+
+        # Sérialiser le module
+        module_serializer = ModulesSerializer(module, many=False)
+
+        response_data = {
+            "module": module_serializer.data,
+            "battery": battery_data,
+            "panneau": panneau_data,
+            "prise": prise_data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Modules.DoesNotExist:
+        return Response(
+            {"error": "Module non trouvé"},
+            status=status.HTTP_404_NOT_FOUND,
         )
 
 

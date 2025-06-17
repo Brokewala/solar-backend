@@ -256,7 +256,7 @@ class ModulesAPIView(APIView):
 
 
 # Toggle module active status
-@api_view(["PATCH"])
+@api_view(["PUT"])
 def toggle_module_active(request, module_id):
     """
     Bascule le statut actif/inactif d'un module

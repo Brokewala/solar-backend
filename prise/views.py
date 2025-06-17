@@ -122,7 +122,7 @@ class PriseAPIView(APIView):
         #  voltage
         if voltage:
             prise.voltage = voltage
-
+            prise.save()
 
         serializer = PriseSerializer(prise, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)

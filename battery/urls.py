@@ -6,6 +6,7 @@ urlpatterns = [
     # battery
     path("all", views.get_all_battery),
     path("battery/<str:module_id>/module", views.get_one_battery_by_module),
+    path("battery/<str:module_id>/module-put", views.put_battery_by_module),
     path("battery", views.BatteryAPIView.as_view()),
     path("battery/<str:battery_id>", views.BatteryAPIView.as_view()),
     # battery data

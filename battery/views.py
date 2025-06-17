@@ -61,6 +61,37 @@ def get_one_battery_by_module(request, module_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+@api_view(["PUT"])
+# @permission_classes([IsAuthenticated])
+def put_battery_by_module(request, module_id):
+    try:
+        battery = Battery.objects.get(module__id=module_id)
+        # variables
+        puissance = request.data.get("puissance")
+        voltage = request.data.get("voltage")
+        marque = request.data.get("marque")
+        #  puissance
+        if puissance:
+            battery.puissance = puissance
+            battery.save()
+
+        #  voltage
+        if voltage:
+            battery.voltage = voltage
+            battery.save()
+
+        #  marque
+        if marque:
+            battery.marque = marque
+            battery.save()
+
+        serializer = BatterySerializer(battery, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Battery.DoesNotExist:
+        return Response(
+            {"error": "battery not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 # Battery APIView
 class BatteryAPIView(APIView):

@@ -201,7 +201,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8001",
     "http://localhost:8081",
     "http://192.168.x.x:8081",
-    "http://172.20.10.2:8000"
+    "http://172.20.10.2:8000",
+    "http://192.168.1.178:8081"
 
 ]
 # # send email setup

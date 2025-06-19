@@ -737,6 +737,7 @@ def get_weekly_panneau_data_for_month(request, module_id, year, month):
         .annotate(total_production=Sum(Cast("production", FloatField())))
         .order_by("week", "day_of_week")
     )
+    print("==========================================data=====",data)
 
     # Mapper les jours de la semaine (1 = Dimanche, ..., 7 = Samedi)
     week_labels = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]

@@ -16,7 +16,7 @@ from jwt.exceptions import ExpiredSignatureError
 from rest_framework_simplejwt.tokens import RefreshToken
 # from django.db import transaction
 from django.template.loader import render_to_string
-
+from module.models import Modules
 # model
 from .models import ProfilUser,UserToken
 
@@ -354,6 +354,8 @@ def verify_code_of_user(request):
         user.status = True
         user.save()
         
+        # Création du module si non existant
+        Modules.objects.get_or_create(user=user)
      
         # Envoi de la réponse
         refresh = RefreshToken.for_user(user)

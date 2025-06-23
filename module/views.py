@@ -154,7 +154,7 @@ class ModulesAPIView(APIView):
             )
 
     def post(self, request):
-        gr_code = request.FILES.get("gr_code")
+        # gr_code = request.FILES.get("gr_code")
         reference = request.data.get("reference")
         identifiant = request.data.get("identifiant")
         password = request.data.get("password")
@@ -191,9 +191,9 @@ class ModulesAPIView(APIView):
             module.save()
 
         #  gr_code
-        if gr_code:
-            module.gr_code = gr_code
-            module.save()
+        # if gr_code:
+        #     module.gr_code = gr_code
+        #     module.save()
 
         serializer = ModulesSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

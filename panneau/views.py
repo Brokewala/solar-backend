@@ -18,8 +18,8 @@ from django.db.models.functions import ExtractMonth
 from datetime import datetime, timedelta
 from django.db.models.functions import ExtractWeek, ExtractWeekDay
 from calendar import monthrange
-from datetime import timezone
-
+# from datetime import timezone
+from django.utils import timezone
 # utils
 from users.utils import _calculate_target_date,_get_french_day_name
 

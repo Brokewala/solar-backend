@@ -8,7 +8,9 @@ from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from datetime import timezone
+# from datetime import timezone
+from django.utils import timezone
+
 # utils
 from users.utils import _calculate_target_date,_get_french_day_name
 

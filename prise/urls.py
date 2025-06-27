@@ -72,5 +72,10 @@ urlpatterns = [
     path('prsie-data-week/<str:module_id>/', views.get_socket_consumption_by_week),
     path('prise-data-weekly/<str:module_id>/<str:year>/<str:month>/', views.get_weekly_prise_data_for_month),
     path('prise-data-daily/<str:module_id>/<str:week_number>/<str:day_of_week>/', views.get_daily_prise_data_for_week),
-
+    #=============================== graphique===================================
+ path('daily-data/<str:module_id>/', views.get_daily_prise_data, name='daily_prise_data'),
+    path('daily-data/<str:module_id>/<int:week_number>/<str:day_of_week>/', 
+         views.get_daily_prise_data, name='daily_prise_data_specific'),
+    path('realtime-data/<str:module_id>/', views.get_realtime_prise_data, name='realtime_prise_data'),
+    path('statistics/<str:module_id>/', views.get_prise_statistics, name='prise_statistics'),
 ]

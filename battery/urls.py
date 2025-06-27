@@ -81,5 +81,10 @@ urlpatterns = [
     path('monthly-production/<str:module_id>/', views.get_monthly_production_summary, name='get_monthly_production_summary'),
     # API pour récupérer l'état du relais par module
     path('battery-relay-state/<str:module_id>/', views.get_battery_relay_state_by_module, name='get_battery_relay_state_by_module'),
-
+    #=============================== graphique===================================
+    path('daily-data/<str:module_id>/', views.get_daily_battery_data, name='daily_battery_data'),
+    path('daily-data/<str:module_id>/<int:week_number>/<str:day_of_week>/', 
+         views.get_daily_battery_data, name='daily_battery_data_specific'),
+    path('realtime-data/<str:module_id>/', views.get_realtime_battery_data, name='realtime_battery_data'),
+    path('statistics/<str:module_id>/', views.get_battery_statistics, name='battery_statistics'),
 ]

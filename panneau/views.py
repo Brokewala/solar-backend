@@ -1000,43 +1000,98 @@ def get_daily_panneau_data(request, module_id, week_number=None, day_of_week=Non
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(["GET"])  
+# @api_view(["GET"])  
+# def get_realtime_panneau_data(request, module_id):
+#     """
+#     API pour récupérer les données panneau en temps réel (dernières 24h).
+#     """
+    
+#     now = timezone.now()
+#     yesterday = now - timedelta(hours=24)
+    
+#     try:
+#         # Récupérer les données des dernières 24h
+#         queryset = PanneauData.objects.filter(
+#             panneau__module_id=module_id,
+#             createdAt__gte=yesterday
+#         ).order_by("-createdAt")[:100]  # Limiter à 100 points max
+        
+#         # Formater les données
+#         data = []
+#         for entry in queryset:
+#             created_at = entry.createdAt
+#             hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            
+#             formatted_entry = {
+#                 "timestamp": created_at.isoformat(),
+#                 "hour_decimal": round(hour_decimal, 3),
+#                 "hour_label": created_at.strftime("%H:%M:%S"),
+#                 "date_label": created_at.strftime("%d/%m/%Y"),
+#                 "tension": float(entry.tension) if entry.tension else 0.0,
+#                 "puissance": float(entry.puissance) if entry.puissance else 0.0,
+#                 "courant": float(entry.courant) if entry.courant else 0.0,
+#                 "production": float(entry.production) if entry.production else 0.0,
+#             }
+#             data.append(formatted_entry)
+        
+#         # Inverser pour avoir l'ordre chronologique
+#         data.reverse()
+        
+#         response_data = {
+#             "component_type": "panneau",
+#             "module_id": module_id,
+#             "realtime": True,
+#             "data_period": "24h",
+#             "total_records": len(data),
+#             "last_updated": now.isoformat(),
+#             "refresh_interval": 30,  # Secondes
+#             "data": data
+#         }
+        
+#         return Response(response_data, status=status.HTTP_200_OK)
+        
+#     except Exception as e:
+#         return Response({
+#             "error": f"Error retrieving realtime panneau data: {str(e)}"
+#         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(["GET"])
 def get_realtime_panneau_data(request, module_id):
     """
     API pour récupérer les données panneau en temps réel (dernières 24h).
+    Données optimisées pour affichage graphique dans l'app mobile.
     """
-    
     now = timezone.now()
     yesterday = now - timedelta(hours=24)
-    
+
     try:
         # Récupérer les données des dernières 24h
         queryset = PanneauData.objects.filter(
             panneau__module_id=module_id,
             createdAt__gte=yesterday
-        ).order_by("-createdAt")[:100]  # Limiter à 100 points max
-        
-        # Formater les données
+        ).order_by("createdAt")  # Tri croissant pour le graphique
+
         data = []
         for entry in queryset:
             created_at = entry.createdAt
             hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
-            
-            formatted_entry = {
+
+            data.append({
                 "timestamp": created_at.isoformat(),
                 "hour_decimal": round(hour_decimal, 3),
-                "hour_label": created_at.strftime("%H:%M:%S"),
+                "hour_label": created_at.strftime("%H:%M"),
                 "date_label": created_at.strftime("%d/%m/%Y"),
-                "tension": float(entry.tension) if entry.tension else 0.0,
-                "puissance": float(entry.puissance) if entry.puissance else 0.0,
-                "courant": float(entry.courant) if entry.courant else 0.0,
-                "production": float(entry.production) if entry.production else 0.0,
-            }
-            data.append(formatted_entry)
-        
-        # Inverser pour avoir l'ordre chronologique
-        data.reverse()
-        
+                "tension": float(entry.tension) if entry.tension is not None else 0.0,
+                "puissance": float(entry.puissance) if entry.puissance is not None else 0.0,
+                "courant": float(entry.courant) if entry.courant is not None else 0.0,
+                "production": float(entry.production) if entry.production is not None else 0.0,
+                "consommation": float(entry.consommation) if hasattr(entry, 'consommation') and entry.consommation is not None else 0.0,
+                "pourcentage": float(getattr(entry, 'pourcentage', 0.0) or 0.0),
+                "energy": float(getattr(entry, 'energy', 0.0) or 0.0)
+            })
+
         response_data = {
             "component_type": "panneau",
             "module_id": module_id,
@@ -1045,16 +1100,15 @@ def get_realtime_panneau_data(request, module_id):
             "total_records": len(data),
             "last_updated": now.isoformat(),
             "refresh_interval": 30,  # Secondes
-            "data": data
+            "data": data,
         }
-        
+
         return Response(response_data, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         return Response({
-            "error": f"Error retrieving realtime panneau data: {str(e)}"
+            "error": f"Erreur lors de la récupération des données panneau temps réel : {str(e)}"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 @api_view(["GET"])
 def get_panneau_statistics(request, module_id):

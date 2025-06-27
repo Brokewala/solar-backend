@@ -140,7 +140,7 @@ def notify_puissance_status(sender, instance, created, **kwargs):
             )
         elif puissance <= 0.2 * capacity:
             message = (
-                "Félicitations ! Vous utilisez moins de puissance d’énergie, vous réalisez des économies d’énergie."
+                "Félicitations ! Vous utilisez moins de puissance d'énergie, vous réalisez des économies d'énergie."
             )
         elif puissance == 0:
             # Condition pour une puissance égale à 0 pendant 1h30
@@ -169,7 +169,7 @@ def notify_consumption_status(sender, instance, created, **kwargs):
     # Notifications pour consommation dépassant 10% de la capacité en 1h
     if capacity > 0 and consumption > 0.1 * capacity:
         message = (
-            "Vous avez consommé trop d’énergie en peu de temps. "
+            "Vous avez consommé trop d'énergie en peu de temps. "
             "Veuillez respecter un timing raisonnable pour éviter des dommages à votre matériel."
         )
     elif capacity > 0 and consumption <= 0.1 * capacity:

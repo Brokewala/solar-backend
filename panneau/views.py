@@ -1,4 +1,5 @@
 from rest_framework import status
+from django.utils.timezone import localtime
 
 # from rest_framework import viewsets
 from rest_framework.views import APIView
@@ -192,6 +193,7 @@ class PanneauDataAPIView(APIView):
         )
         # save into database
         panneau_data.save()
+        print("======================panneau_data===========",panneau_data.createdAt)
         serializer = PanneauDataSerializer(panneau_data, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -1075,13 +1077,15 @@ def get_realtime_panneau_data(request, module_id):
 
         data = []
         for entry in queryset:
-            created_at = entry.createdAt
+            created_at = localtime(entry.createdAt)
+
+            # On conserve l'heure décimale exacte (sans arrondi)
             hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
 
             data.append({
                 "timestamp": created_at.isoformat(),
-                "hour_decimal": round(hour_decimal, 3),
-                "hour_label": created_at.strftime("%H:%M"),
+                "hour_decimal": hour_decimal,  # Plus de round()
+                "hour_label": created_at.strftime("%H:%M"),  # Heure exacte avec secondes
                 "date_label": created_at.strftime("%d/%m/%Y"),
                 "tension": float(entry.tension) if entry.tension is not None else 0.0,
                 "puissance": float(entry.puissance) if entry.puissance is not None else 0.0,

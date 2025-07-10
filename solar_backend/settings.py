@@ -14,7 +14,7 @@ load_dotenv()
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-517me7l6)qts)dk@or&cs*sj-wm38p!8p918&k7g9kktdav#i5"
-DEPLOYMENT = False
+DEPLOYMENT = True
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -214,3 +214,7 @@ EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
 EMAIL_HOST_PASSWORD = "loxb wora pney rane"
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
+
+# time
+TIME_ZONE = 'Indian/Antananarivo'
+USE_TZ = True  # On garde True pour stocker en UTC mais savoir faire les conversions

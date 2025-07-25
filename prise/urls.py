@@ -54,6 +54,17 @@ urlpatterns = [
         name="couleur-prise-by-module",
     ),
     path(
+        "prise-colors/<str:module_id>/",
+        views.get_couleur_prise_by_id_module,
+        name="prise-colors",  # Alias pour compatibilité frontend
+    ),
+    # API pour récupérer l'état du relais par module
+    path(
+        "prise-relay-state/<str:module_id>/",
+        views.get_prise_relay_state_by_module,
+        name="get_prise_relay_state_by_module",
+    ),
+    path(
         "consommation-annuelle/<str:module_id>/",
         views.get_consommation_prise_annuelle,
         name="consommation-annuelle",
@@ -61,5 +72,10 @@ urlpatterns = [
     path('prsie-data-week/<str:module_id>/', views.get_socket_consumption_by_week),
     path('prise-data-weekly/<str:module_id>/<str:year>/<str:month>/', views.get_weekly_prise_data_for_month),
     path('prise-data-daily/<str:module_id>/<str:week_number>/<str:day_of_week>/', views.get_daily_prise_data_for_week),
-
+    #=============================== graphique===================================
+ path('daily-data/<str:module_id>/', views.get_daily_prise_data, name='daily_prise_data'),
+    path('daily-data/<str:module_id>/<int:week_number>/<str:day_of_week>/', 
+         views.get_daily_prise_data, name='daily_prise_data_specific'),
+    path('realtime-data/<str:module_id>/', views.get_realtime_prise_data, name='realtime_prise_data'),
+    path('statistics/<str:module_id>/', views.get_prise_statistics, name='prise_statistics'),
 ]

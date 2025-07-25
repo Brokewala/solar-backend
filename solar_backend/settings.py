@@ -14,7 +14,7 @@ load_dotenv()
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-517me7l6)qts)dk@or&cs*sj-wm38p!8p918&k7g9kktdav#i5"
-DEPLOYMENT = False
+DEPLOYMENT = True
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -191,12 +191,20 @@ CORS_ALLOW_HEADERS = (
 )
 CORS_ALLOW_ALL_ORIGINS = True
 
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://localhost:4200",
-#     "http://localhost:5173",
-#     "https://shimmering-compassion-production.up.railway.app"
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:4200",
+    "http://localhost:5173",
+    "https://shimmering-compassion-production.up.railway.app",
+    "exp://sttlt3y-anonymous-8081.exp.direct",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:8001",
+    "http://localhost:8081",
+    "http://192.168.x.x:8081",
+    "http://172.20.10.2:8000",
+    "http://192.168.1.178:8081"
+
+]
 # # send email setup
 # 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -206,3 +214,7 @@ EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
 EMAIL_HOST_PASSWORD = "loxb wora pney rane"
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
+
+# time
+TIME_ZONE = 'Indian/Antananarivo'
+USE_TZ = True  # On garde True pour stocker en UTC mais savoir faire les conversions

@@ -1,4 +1,5 @@
 from rest_framework import status
+from django.utils.timezone import localtime
 
 # from rest_framework import viewsets
 from rest_framework.views import APIView
@@ -18,7 +19,10 @@ from django.db.models.functions import ExtractMonth
 from datetime import datetime, timedelta
 from django.db.models.functions import ExtractWeek, ExtractWeekDay
 from calendar import monthrange
-from datetime import timezone
+# from datetime import timezone
+from django.utils import timezone
+# utils
+from users.utils import _calculate_target_date,_get_french_day_name
 
 # models
 from .models import Panneau
@@ -86,7 +90,7 @@ class PanneauAPIView(APIView):
             return Response(
                 {"error": "panneau already existe"}, status=status.HTTP_400_BAD_REQUEST
             )
-            
+
         # get module
         module_data = get_object_or_404(Modules, id=module)
 
@@ -189,6 +193,7 @@ class PanneauDataAPIView(APIView):
         )
         # save into database
         panneau_data.save()
+        print("======================panneau_data===========",panneau_data.createdAt)
         serializer = PanneauDataSerializer(panneau_data, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -241,6 +246,17 @@ class PanneauDataAPIView(APIView):
 # @permission_classes([IsAuthenticated])
 def get_one_PanneauPlanning_by_panneau(request, panneau_id):
     panneau_data = PanneauPlanning.objects.filter(panneau__id=panneau_id)
+    serializer = PanneauPlanningSerializer(panneau_data, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# plannig by module
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def get_PanneauPlanning_by_module(request, module_id):
+    module_data = get_object_or_404(Modules, id=module_id)
+    panneau_value = get_object_or_404(Panneau, module=module_data.id)
+    panneau_data = PanneauPlanning.objects.filter(panneau__id=panneau_value.id)
     serializer = PanneauPlanningSerializer(panneau_data, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -586,24 +602,24 @@ def create_relai_state_auto_panneau(sender, instance, created, **kwargs):
 # ===================mobile===========================
 @api_view(["GET"])
 def couleur_by_module(request,module_id):
-    
+
     # Check if module_id is provided
     if not module_id:
         return Response({"detail": "Module ID is required"}, status=400)
-    
+
     # Filtering by module ID
     panneaux = PanneauRelaiState.objects.filter(panneau__module_id=module_id).first()
-    serializer = PanneauRelaiStateSerializer(panneaux, many=False)    
+    serializer = PanneauRelaiStateSerializer(panneaux, many=False)
     return Response(serializer.data,status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
 def get_production_panneau_annuelle(request,module_id):
-    
+
     # Check if module_id is provided
     if not module_id:
         return Response({"detail": "Module ID is required"}, status=400)
-    
+
     # Filter PanneauData by module_id via related Panneau
     try:
         # Récupérer le panneau spécifié
@@ -726,6 +742,7 @@ def get_weekly_panneau_data_for_month(request, module_id, year, month):
         .annotate(total_production=Sum(Cast("production", FloatField())))
         .order_by("week", "day_of_week")
     )
+    print("==========================================data=====",data)
 
     # Mapper les jours de la semaine (1 = Dimanche, ..., 7 = Samedi)
     week_labels = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
@@ -767,12 +784,12 @@ def get_weekly_panneau_data_for_month(request, module_id, year, month):
 
     return Response(response_data)
 
+
 @api_view(["GET"])
 def get_daily_panneau_data_for_week(request, module_id, week_number, day_of_week):
     """
-    Retrieve Panneau data for a specific day (e.g., Saturday) of a given week number.
-    The response will return hours as labels and corresponding data for fields like
-    tension, puissance, courant, and production.
+    Retrieve real Panneau data for a specific day with exact timestamps.
+    Returns all individual data points as inserted by users for accurate daily visualization.
     """
     try:
         week_number = int(week_number)  # Conversion en entier
@@ -818,46 +835,339 @@ def get_daily_panneau_data_for_week(request, module_id, week_number, day_of_week
     start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
     end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
 
-    # Récupérer les données
-    #  Cast("tension", FloatField())
-    data = (
-        PanneauData.objects.filter(
-            panneau__module_id=module_id,
-            createdAt__range=(start_of_day, end_of_day),
-        )
-        .values("createdAt__hour")
-        .annotate(
-            total_tension=Sum(Cast("tension", FloatField())),
-            total_puissance=Sum(Cast("puissance", FloatField())),
-            total_courant=Sum(Cast("courant", FloatField())),
-            total_production=Sum(Cast("production", FloatField())),
-        )
-        .order_by("createdAt__hour")
+    # Récupérer toutes les données réelles de panneau pour cette journée
+    panneau_data = PanneauData.objects.filter(
+        panneau__module_id=module_id,
+        createdAt__range=(start_of_day, end_of_day),
+    ).order_by("createdAt").values(
+        "createdAt", "tension", "puissance", "courant", "production"
     )
 
-    # Structure des données horaires
+    # Convertir les données au format professionnel pour les graphiques
     result = []
-    for hour in range(24):
-        hour_data = next(
-            (
-                {
-                    "hour": hour,
-                    "tension": entry["total_tension"] or 0,
-                    "puissance": entry["total_puissance"] or 0,
-                    "courant": entry["total_courant"] or 0,
-                    "production": entry["total_production"] or 0,
-                }
-                for entry in data
-                if entry["createdAt__hour"] == hour
-            ),
-            {
-                "hour": hour,
-                "tension": 0,
-                "puissance": 0,
-                "courant": 0,
-                "production": 0,
-            },
-        )
-        result.append(hour_data)
+    for entry in panneau_data:
+        created_at = entry["createdAt"]
 
-    return Response(result)
+        # Calculer l'heure décimale pour un affichage précis
+        hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+
+        # Formatage professionnel des données
+        data_point = {
+            "timestamp": created_at.isoformat(),
+            "hour_decimal": round(hour_decimal, 3),
+            "hour_label": created_at.strftime("%H:%M:%S"),
+            "date_label": created_at.strftime("%d/%m/%Y"),
+            "tension": float(entry["tension"]) if entry["tension"] else 0.0,
+            "puissance": float(entry["puissance"]) if entry["puissance"] else 0.0,
+            "courant": float(entry["courant"]) if entry["courant"] else 0.0,
+            "production": float(entry["production"]) if entry["production"] else 0.0,
+        }
+        result.append(data_point)
+
+    # Métadonnées professionnelles
+    response_data = {
+        "date": target_day.strftime("%Y-%m-%d"),
+        "day_name": day_of_week,
+        "week_number": week_number,
+        "total_records": len(result),
+        "data_range": {
+            "start": start_of_day.isoformat(),
+            "end": end_of_day.isoformat()
+        },
+        "data": result
+    }
+
+    return Response(response_data)
+
+
+@api_view(["GET"])
+def get_panneau_relay_state_by_module(request, module_id):
+    """
+    Récupère l'état du relais du panneau pour un module donné
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        # Récupérer le panneau associé au module
+        panneau = Panneau.objects.filter(module=module).first()
+
+        if not panneau:
+            return Response({
+                "couleur": "gray",
+                "active": False,
+                "message": "Aucun panneau trouvé pour ce module"
+            }, status=status.HTTP_200_OK)
+
+        # Récupérer l'état du relais du panneau
+        relay_state = PanneauRelaiState.objects.filter(panneau=panneau).first()
+
+        if not relay_state:
+            # Créer un état par défaut si aucun n'existe
+            relay_state = PanneauRelaiState.objects.create(
+                panneau=panneau,
+                active=False,
+                state="low",
+                couleur="red",
+                valeur="0"
+            )
+
+        return Response({
+            "couleur": relay_state.couleur,
+            "active": relay_state.couleur == "green",
+            "state": relay_state.state,
+            "valeur": relay_state.valeur,
+            "panneau_id": str(panneau.id)
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "Une erreur s'est produite lors de la récupération de l'état du relais",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# =====================================graphique=======================================
+
+# ========================================
+# APIs pour PANNEAU
+# ========================================
+
+@api_view(["GET"])
+def get_daily_panneau_data(request, module_id, week_number=None, day_of_week=None):
+    """
+    API pour récupérer les données journalières des panneaux solaires.
+    
+    Paramètres:
+    - module_id: ID du module
+    - week_number: numéro de la semaine (optionnel)
+    - day_of_week: jour de la semaine en français (optionnel)
+    """
+    
+    try:
+        target_date = _calculate_target_date(week_number, day_of_week)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_of_day = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+        
+        # Récupérer les données panneau
+        panneau_data = PanneauData.objects.filter(
+            panneau__module_id=module_id,
+            createdAt__range=(start_of_day, end_of_day)
+        ).order_by("createdAt").values(
+            "createdAt", "tension", "puissance", "courant", "production"
+        )
+        
+        # Formater les données
+        result = []
+        for entry in panneau_data:
+            created_at = entry["createdAt"]
+            hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            
+            data_point = {
+                "timestamp": created_at.isoformat(),
+                "hour_decimal": round(hour_decimal, 3),
+                "hour_label": created_at.strftime("%H:%M:%S"),
+                "date_label": created_at.strftime("%d/%m/%Y"),
+                "tension": float(entry["tension"]) if entry["tension"] else 0.0,
+                "puissance": float(entry["puissance"]) if entry["puissance"] else 0.0,
+                "courant": float(entry["courant"]) if entry["courant"] else 0.0,
+                "production": float(entry["production"]) if entry["production"] else 0.0,
+            }
+            result.append(data_point)
+        
+        response_data = {
+            "component_type": "panneau",
+            "module_id": module_id,
+            "date": target_date.strftime("%Y-%m-%d"),
+            "day_name": _get_french_day_name(target_date.strftime("%A")),
+            "week_number": target_date.isocalendar()[1],
+            "total_records": len(result),
+            "last_updated": timezone.now().isoformat(),
+            "data_range": {
+                "start": start_of_day.isoformat(),
+                "end": end_of_day.isoformat()
+            },
+            "data": result
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            "error": f"Error retrieving panneau data: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# @api_view(["GET"])  
+# def get_realtime_panneau_data(request, module_id):
+#     """
+#     API pour récupérer les données panneau en temps réel (dernières 24h).
+#     """
+    
+#     now = timezone.now()
+#     yesterday = now - timedelta(hours=24)
+    
+#     try:
+#         # Récupérer les données des dernières 24h
+#         queryset = PanneauData.objects.filter(
+#             panneau__module_id=module_id,
+#             createdAt__gte=yesterday
+#         ).order_by("-createdAt")[:100]  # Limiter à 100 points max
+        
+#         # Formater les données
+#         data = []
+#         for entry in queryset:
+#             created_at = entry.createdAt
+#             hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            
+#             formatted_entry = {
+#                 "timestamp": created_at.isoformat(),
+#                 "hour_decimal": round(hour_decimal, 3),
+#                 "hour_label": created_at.strftime("%H:%M:%S"),
+#                 "date_label": created_at.strftime("%d/%m/%Y"),
+#                 "tension": float(entry.tension) if entry.tension else 0.0,
+#                 "puissance": float(entry.puissance) if entry.puissance else 0.0,
+#                 "courant": float(entry.courant) if entry.courant else 0.0,
+#                 "production": float(entry.production) if entry.production else 0.0,
+#             }
+#             data.append(formatted_entry)
+        
+#         # Inverser pour avoir l'ordre chronologique
+#         data.reverse()
+        
+#         response_data = {
+#             "component_type": "panneau",
+#             "module_id": module_id,
+#             "realtime": True,
+#             "data_period": "24h",
+#             "total_records": len(data),
+#             "last_updated": now.isoformat(),
+#             "refresh_interval": 30,  # Secondes
+#             "data": data
+#         }
+        
+#         return Response(response_data, status=status.HTTP_200_OK)
+        
+#     except Exception as e:
+#         return Response({
+#             "error": f"Error retrieving realtime panneau data: {str(e)}"
+#         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(["GET"])
+def get_realtime_panneau_data(request, module_id):
+    """
+    API pour récupérer les données panneau en temps réel (dernières 24h).
+    Données optimisées pour affichage graphique dans l'app mobile.
+    """
+    now = timezone.now()
+    yesterday = now - timedelta(hours=24)
+
+    try:
+        # Récupérer les données des dernières 24h
+        queryset = PanneauData.objects.filter(
+            panneau__module_id=module_id,
+            createdAt__gte=yesterday
+        ).order_by("createdAt")  # Tri croissant pour le graphique
+
+        data = []
+        for entry in queryset:
+            created_at = localtime(entry.createdAt)
+
+            # On conserve l'heure décimale exacte (sans arrondi)
+            hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+
+            data.append({
+                "timestamp": created_at.isoformat(),
+                "hour_decimal": hour_decimal,  # Plus de round()
+                "hour_label": created_at.strftime("%H:%M"),  # Heure exacte avec secondes
+                "date_label": created_at.strftime("%d/%m/%Y"),
+                "tension": float(entry.tension) if entry.tension is not None else 0.0,
+                "puissance": float(entry.puissance) if entry.puissance is not None else 0.0,
+                "courant": float(entry.courant) if entry.courant is not None else 0.0,
+                "production": float(entry.production) if entry.production is not None else 0.0,
+                "consommation": float(entry.consommation) if hasattr(entry, 'consommation') and entry.consommation is not None else 0.0,
+                "pourcentage": float(getattr(entry, 'pourcentage', 0.0) or 0.0),
+                "energy": float(getattr(entry, 'energy', 0.0) or 0.0)
+            })
+
+        response_data = {
+            "component_type": "panneau",
+            "module_id": module_id,
+            "realtime": True,
+            "data_period": "24h",
+            "total_records": len(data),
+            "last_updated": now.isoformat(),
+            "refresh_interval": 30,  # Secondes
+            "data": data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": f"Erreur lors de la récupération des données panneau temps réel : {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(["GET"])
+def get_panneau_statistics(request, module_id):
+    """
+    API pour récupérer les statistiques du jour pour les panneaux.
+    """
+    
+    try:
+        today = timezone.now().date()
+        start_of_day = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_of_day = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
+        
+        # Récupérer les données du jour
+        panneau_data = PanneauData.objects.filter(
+            panneau__module_id=module_id,
+            createdAt__range=(start_of_day, end_of_day)
+        ).values("tension", "puissance", "courant", "production")
+        
+        if not panneau_data:
+            return Response({
+                "component_type": "panneau",
+                "date": today.strftime("%Y-%m-%d"),
+                "statistics": {
+                    "total_records": 0,
+                    "message": "No data available for today"
+                }
+            })
+        
+        # Calculer les statistiques
+        metrics = ['tension', 'puissance', 'courant', 'production']
+        statistics = {}
+        
+        for metric in metrics:
+            values = [float(entry[metric]) for entry in panneau_data if entry[metric]]
+            if values:
+                statistics[metric] = {
+                    "current": values[-1],
+                    "min": min(values),
+                    "max": max(values),
+                    "avg": round(sum(values) / len(values), 2),
+                    "total": round(sum(values), 2) if metric == 'production' else None
+                }
+        
+        response_data = {
+            "component_type": "panneau",
+            "module_id": module_id,
+            "date": today.strftime("%Y-%m-%d"),
+            "total_records": len(panneau_data),
+            "statistics": statistics,
+            "last_updated": timezone.now().isoformat()
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            "error": f"Error calculating panneau statistics: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

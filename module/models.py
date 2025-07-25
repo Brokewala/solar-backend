@@ -18,12 +18,7 @@ class Modules(models.Model):
         null=True,
         related_name="module_user",
     )
-    # gr_code = models.ImageField(
-    #     upload_to=upload_to,
-    #     blank=True,
-    #     null=True,
-    #     default="grcode.jpg",
-    # )
+
     reference = models.CharField(max_length=200,blank=True,null=True)
     identifiant = models.CharField(max_length=200,blank=True,null=True)
     password = models.CharField(max_length=200,blank=True,null=True)

@@ -16,7 +16,7 @@ from jwt.exceptions import ExpiredSignatureError
 from rest_framework_simplejwt.tokens import RefreshToken
 # from django.db import transaction
 from django.template.loader import render_to_string
-
+from module.models import Modules
 # model
 from .models import ProfilUser,UserToken
 
@@ -354,6 +354,8 @@ def verify_code_of_user(request):
         user.status = True
         user.save()
         
+        # Création du module si non existant
+        Modules.objects.get_or_create(user=user)
      
         # Envoi de la réponse
         refresh = RefreshToken.for_user(user)
@@ -401,4 +403,74 @@ def resend_code_of_signup(request):
         "code": user.code,
     }
     return Response(response_data)
+
+
+# update user profile
+@api_view(["PUT"])
+def update_user_profile(request):
+    """
+    Met à jour le profil utilisateur avec authentification par token
+    """
+    token = request.data.get("token")
+    if not token:
+        return Response(
+            {"error": "Token is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # decode token
+    try:
+        decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        return Response(
+            {"error": "Token has expired"}, status=status.HTTP_401_UNAUTHORIZED
+        )
+    except jwt.InvalidTokenError:
+        return Response(
+            {"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    user_id = decoded_token["user_id"]
+
+    # get user
+    try:
+        user = ProfilUser.objects.get(id=user_id)
+    except ProfilUser.DoesNotExist:
+        return Response(
+            {"error": "User does not exist"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Validation des champs requis
+    if not request.data.get("first_name") or not request.data.get("last_name") or not request.data.get("email"):
+        return Response(
+            {"error": "First name, last name and email are required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Vérifier si l'email existe déjà pour un autre utilisateur
+    email = request.data.get("email")
+    if ProfilUser.objects.filter(email=email).exclude(id=user_id).exists():
+        return Response(
+            {"error": "Email already exists"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Mettre à jour les champs
+    user.first_name = request.data.get("first_name")
+    user.last_name = request.data.get("last_name")
+    user.email = email
+
+    if request.data.get("adresse"):
+        user.adresse = request.data.get("adresse")
+
+    if request.data.get("code_postal"):
+        user.code_postal = request.data.get("code_postal")
+
+    if request.data.get("phone"):
+        user.phone = request.data.get("phone")
+
+    # Sauvegarder
+    user.save()
+
+    # Retourner les données mises à jour
+    serializer = ProfilUserSerializer(user, many=False)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 

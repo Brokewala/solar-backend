@@ -30,9 +30,15 @@ def get_all_rating(request):
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_rating_by_user(request, user_id):
-    ratings = Rating.objects.get(user=user_id)
-    serializer = RatingSerializer(ratings, many=False)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    try:
+        ratings = Rating.objects.filter(user__id=user_id).order_by("-createdAt")
+        serializer = RatingSerializer(ratings, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Rating.DoesNotExist:
+        return Response(
+            {"error": "No ratings found for this user"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 
 # Rating APIView
@@ -59,21 +65,21 @@ class RatingAPIView(APIView):
         #  user
         user_value = get_object_or_404(ProfilUser, id=user)
 
-        # create user
-        module = Rating.objects.create(
+        # create rating
+        rating = Rating.objects.create(
             score=score,
             comment=comment,
             user=user_value,
         )
         # save into database
-        module.save()
+        rating.save()
 
-        serializer = RatingSerializer(module, many=False)
+        serializer = RatingSerializer(rating, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get(self, request, rating_id):
-        module = self.get_object(rating_id=rating_id)
-        serializer = RatingSerializer(module, many=False)
+        rating = self.get_object(rating_id=rating_id)
+        serializer = RatingSerializer(rating, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, rating_id):

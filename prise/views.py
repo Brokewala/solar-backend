@@ -17,7 +17,11 @@ from datetime import datetime
 from datetime import datetime, timedelta
 from calendar import monthrange
 from django.db.models.functions import ExtractWeek, ExtractWeekDay
-from datetime import timezone
+# from datetime import timezone
+from django.utils import timezone
+
+# utils
+from users.utils import _calculate_target_date,_get_french_day_name
 
 # models
 from .models import Prise
@@ -75,19 +79,19 @@ class PriseAPIView(APIView):
         name = request.data.get("name")
         voltage = request.data.get("voltage")
         module = request.data.get("module")
-        
+
 
         if module is None or name is None or voltage is None:
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
-            
+
          # module
         if Prise.objects.filter(module__id=module).exists():
             return Response(
                 {"error": "prise already existe"}, status=status.HTTP_400_BAD_REQUEST
             )
-            
+
 
         # get module
         module_data = get_object_or_404(Modules, id=module)
@@ -122,7 +126,7 @@ class PriseAPIView(APIView):
         #  voltage
         if voltage:
             prise.voltage = voltage
-
+            prise.save()
 
         serializer = PriseSerializer(prise, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -331,7 +335,7 @@ class PrisePlanningPIView(APIView):
         if done:
             prise_data.done = done
             prise_data.save()
-        
+
         #  date
         if date:
             prise_data.date = date
@@ -424,13 +428,13 @@ class PriseRelaiStateAPIView(APIView):
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         if active =="true":
             active=True
         else:
             active= False
-        
-        
+
+
         # get Prise
         prise = get_object_or_404(Prise, id=prise_id)
 
@@ -640,7 +644,7 @@ def get_consommation_prise_annuelle(request,module_id):
         # Récupérer la prise correspondante
         module = get_object_or_404(Modules, id=module_id)
         prise = get_object_or_404(Prise, module=module)
-        
+
         # Année en cours
         current_year = datetime.now().year
 
@@ -743,7 +747,7 @@ def get_weekly_prise_data_for_month(request, module_id, year, month):
 
     # Récupérer les données de la base de données
     # # Cast("tension", FloatField())
-    # 
+    #
     data = (
         PriseData.objects.filter(
             prise__module_id=module_id,
@@ -803,10 +807,8 @@ def get_weekly_prise_data_for_month(request, module_id, year, month):
 @api_view(["GET"])
 def get_daily_prise_data_for_week(request, module_id, week_number, day_of_week):
     """
-    Retrieve Prise data for a specific day (e.g., Saturday) of a given week number.
-    The response will return hours as labels and corresponding data for fields like
-    tension, puissance, courant, and consomation.
-    
+    Retrieve real Prise data for a specific day with exact timestamps.
+    Returns all individual data points as inserted by users for accurate daily visualization.
     """
     try:
         week_number = int(week_number)  # Conversion en entier
@@ -852,47 +854,278 @@ def get_daily_prise_data_for_week(request, module_id, week_number, day_of_week):
     start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
     end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
 
-    # Récupérer les données
-    # Cast("tension", FloatField())
-    data = (
-        PriseData.objects.filter(
-            prise__module_id=module_id,
-            createdAt__range=(start_of_day, end_of_day),
-        )
-        .values("createdAt__hour")
-        .annotate(
-            total_tension=Sum(Cast("tension", FloatField())),
-            total_puissance=Sum(Cast("puissance", FloatField())),
-            total_courant=Sum(Cast("courant", FloatField())),
-            total_consomation=Sum(Cast("consomation", FloatField())),
-        )
-        .order_by("createdAt__hour")
+    # Récupérer toutes les données réelles de prise pour cette journée
+    prise_data = PriseData.objects.filter(
+        prise__module_id=module_id,
+        createdAt__range=(start_of_day, end_of_day),
+    ).order_by("createdAt").values(
+        "createdAt", "tension", "puissance", "courant", "consomation"
     )
 
-    # Structure des données horaires
+    # Convertir les données au format professionnel pour les graphiques
     result = []
-    for hour in range(24):
-        hour_data = next(
-            (
-                {
-                    "hour": hour,
-                    "tension": entry["total_tension"] or 0,
-                    "puissance": entry["total_puissance"] or 0,
-                    "courant": entry["total_courant"] or 0,
-                    "consomation": entry["total_consomation"] or 0,
-                }
-                for entry in data
-                if entry["createdAt__hour"] == hour
-            ),
-            {
-                "hour": hour,
-                "tension": 0,
-                "puissance": 0,
-                "courant": 0,
-                "consomation": 0,
-            },
-        )
-        result.append(hour_data)
+    for entry in prise_data:
+        created_at = entry["createdAt"]
 
-    return Response(result)
+        # Calculer l'heure décimale pour un affichage précis
+        hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+
+        # Formatage professionnel des données
+        data_point = {
+            "timestamp": created_at.isoformat(),
+            "hour_decimal": round(hour_decimal, 3),
+            "hour_label": created_at.strftime("%H:%M:%S"),
+            "date_label": created_at.strftime("%d/%m/%Y"),
+            "tension": float(entry["tension"]) if entry["tension"] else 0.0,
+            "puissance": float(entry["puissance"]) if entry["puissance"] else 0.0,
+            "courant": float(entry["courant"]) if entry["courant"] else 0.0,
+            "consomation": float(entry["consomation"]) if entry["consomation"] else 0.0,
+        }
+        result.append(data_point)
+
+    # Métadonnées professionnelles
+    response_data = {
+        "date": target_day.strftime("%Y-%m-%d"),
+        "day_name": day_of_week,
+        "week_number": week_number,
+        "total_records": len(result),
+        "data_range": {
+            "start": start_of_day.isoformat(),
+            "end": end_of_day.isoformat()
+        },
+        "data": result
+    }
+
+    return Response(response_data)
+
+
+@api_view(["GET"])
+def get_prise_relay_state_by_module(request, module_id):
+    """
+    Récupère l'état du relais de la prise pour un module donné
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        # Récupérer la prise associée au module
+        prise = Prise.objects.filter(module=module).first()
+
+        if not prise:
+            return Response({
+                "couleur": "gray",
+                "active": False,
+                "message": "Aucune prise trouvée pour ce module"
+            }, status=status.HTTP_200_OK)
+
+        # Récupérer l'état du relais de la prise
+        relay_state = PriseRelaiState.objects.filter(prise=prise).first()
+
+        if not relay_state:
+            # Créer un état par défaut si aucun n'existe
+            relay_state = PriseRelaiState.objects.create(
+                prise=prise,
+                active=False,
+                state="low",
+                couleur="red",
+                valeur="0"
+            )
+
+        return Response({
+            "couleur": relay_state.couleur,
+            "active": relay_state.active,
+            "state": relay_state.state,
+            "valeur": relay_state.valeur,
+            "prise_id": prise.id
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "Une erreur s'est produite lors de la récupération de l'état du relais",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ====================================================graphique
+
+# ========================================
+# APIs pour PRISE
+# ========================================
+
+@api_view(["GET"])
+def get_daily_prise_data(request, module_id, week_number=None, day_of_week=None):
+    """
+    API pour récupérer les données journalières des prises.
+    """
+    
+    try:
+        target_date = _calculate_target_date(week_number, day_of_week)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_of_day = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+        
+        # Récupérer les données prise
+        prise_data = PriseData.objects.filter(
+            prise__module_id=module_id,
+            createdAt__range=(start_of_day, end_of_day)
+        ).order_by("createdAt").values(
+            "createdAt", "tension", "puissance", "courant", "consomation"
+        )
+        
+        # Formater les données
+        result = []
+        for entry in prise_data:
+            created_at = entry["createdAt"]
+            hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            
+            data_point = {
+                "timestamp": created_at.isoformat(),
+                "hour_decimal": round(hour_decimal, 3),
+                "hour_label": created_at.strftime("%H:%M:%S"),
+                "date_label": created_at.strftime("%d/%m/%Y"),
+                "tension": float(entry["tension"]) if entry["tension"] else 0.0,
+                "puissance": float(entry["puissance"]) if entry["puissance"] else 0.0,
+                "courant": float(entry["courant"]) if entry["courant"] else 0.0,
+                "consommation": float(entry["consomation"]) if entry["consomation"] else 0.0,  # Note: typo dans le modèle
+            }
+            result.append(data_point)
+        
+        response_data = {
+            "component_type": "prise",
+            "module_id": module_id,
+            "date": target_date.strftime("%Y-%m-%d"),
+            "day_name": _get_french_day_name(target_date.strftime("%A")),
+            "week_number": target_date.isocalendar()[1],
+            "total_records": len(result),
+            "last_updated": timezone.now().isoformat(),
+            "data_range": {
+                "start": start_of_day.isoformat(),
+                "end": end_of_day.isoformat()
+            },
+            "data": result
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            "error": f"Error retrieving prise data: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])  
+def get_realtime_prise_data(request, module_id):
+    """
+    API pour récupérer les données prise en temps réel (dernières 24h).
+    """
+    
+    now = timezone.now()
+    yesterday = now - timedelta(hours=24)
+    
+    try:
+        # Récupérer les données des dernières 24h
+        queryset = PriseData.objects.filter(
+            prise__module_id=module_id,
+            createdAt__gte=yesterday
+        ).order_by("-createdAt")[:100]
+        
+        # Formater les données
+        data = []
+        for entry in queryset:
+            created_at = entry.createdAt
+            hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            
+            formatted_entry = {
+                "timestamp": created_at.isoformat(),
+                "hour_decimal": round(hour_decimal, 3),
+                "hour_label": created_at.strftime("%H:%M:%S"),
+                "date_label": created_at.strftime("%d/%m/%Y"),
+                "tension": float(entry.tension) if entry.tension else 0.0,
+                "puissance": float(entry.puissance) if entry.puissance else 0.0,
+                "courant": float(entry.courant) if entry.courant else 0.0,
+                "consommation": float(entry.consomation) if entry.consomation else 0.0,
+            }
+            data.append(formatted_entry)
+        
+        data.reverse()
+        
+        response_data = {
+            "component_type": "prise",
+            "module_id": module_id,
+            "realtime": True,
+            "data_period": "24h",
+            "total_records": len(data),
+            "last_updated": now.isoformat(),
+            "refresh_interval": 30,
+            "data": data
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            "error": f"Error retrieving realtime prise data: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+def get_prise_statistics(request, module_id):
+    """
+    API pour récupérer les statistiques du jour pour les prises.
+    """
+    
+    try:
+        today = timezone.now().date()
+        start_of_day = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_of_day = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
+        
+        # Récupérer les données du jour
+        prise_data = PriseData.objects.filter(
+            prise__module_id=module_id,
+            createdAt__range=(start_of_day, end_of_day)
+        ).values("tension", "puissance", "courant", "consomation")
+        
+        if not prise_data:
+            return Response({
+                "component_type": "prise",
+                "date": today.strftime("%Y-%m-%d"),
+                "statistics": {
+                    "total_records": 0,
+                    "message": "No data available for today"
+                }
+            })
+        
+        # Calculer les statistiques
+        metrics = ['tension', 'puissance', 'courant', 'consomation']
+        statistics = {}
+        
+        for metric in metrics:
+            values = [float(entry[metric]) for entry in prise_data if entry[metric]]
+            if values:
+                stat_key = "consommation" if metric == "consomation" else metric
+                statistics[stat_key] = {
+                    "current": values[-1],
+                    "min": min(values),
+                    "max": max(values),
+                    "avg": round(sum(values) / len(values), 2),
+                    "total": round(sum(values), 2) if metric == 'consomation' else None
+                }
+        
+        response_data = {
+            "component_type": "prise",
+            "module_id": module_id,
+            "date": today.strftime("%Y-%m-%d"),
+            "total_records": len(prise_data),
+            "statistics": statistics,
+            "last_updated": timezone.now().isoformat()
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            "error": f"Error calculating prise statistics: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

@@ -8,12 +8,16 @@ from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from datetime import timezone
+# from datetime import timezone
+from django.utils import timezone
+
+# utils
+from users.utils import _calculate_target_date,_get_french_day_name
 
 # django
 from datetime import timedelta
 from datetime import datetime
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Avg
 from django.db.models.functions import Coalesce
 from django.db.models.functions import ExtractYear
 from django.db.models import Q
@@ -51,10 +55,47 @@ def get_all_battery(request):
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_battery_by_module(request, module_id):
-    battery = Battery.objects.get(module__id=module_id)
-    serializer = BatterySerializer(battery, many=False)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    try:
+        battery = Battery.objects.get(module__id=module_id)
+        serializer = BatterySerializer(battery, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Battery.DoesNotExist:
+        return Response(
+            {"error": "battery not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
+@api_view(["PUT"])
+# @permission_classes([IsAuthenticated])
+def put_battery_by_module(request, module_id):
+    try:
+        battery = Battery.objects.get(module__id=module_id)
+        # variables
+        puissance = request.data.get("puissance")
+        voltage = request.data.get("voltage")
+        marque = request.data.get("marque")
+        #  puissance
+        if puissance:
+            battery.puissance = puissance
+            battery.save()
+
+        #  voltage
+        if voltage:
+            battery.voltage = voltage
+            battery.save()
+
+        #  marque
+        if marque:
+            battery.marque = marque
+            battery.save()
+
+        serializer = BatterySerializer(battery, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Battery.DoesNotExist:
+        return Response(
+            {"error": "battery not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 # Battery APIView
 class BatteryAPIView(APIView):
@@ -78,7 +119,7 @@ class BatteryAPIView(APIView):
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
-        
+
          # module
         if Battery.objects.filter(module__id=module).exists():
             return Response(
@@ -343,7 +384,7 @@ class BatteryPlanningPIView(APIView):
         if done:
             battery_data.done = done
             battery_data.save()
-        
+
         #  date
         if date:
             battery_data.date = date
@@ -727,7 +768,7 @@ def get_couleur_batterie_by_id_module(request, module_id):
 # listebatteryDataByDateAndIdModule
 @api_view(["GET"])
 def liste_batterie_data_by_date_and_id_module(request, module_id,date):
- 
+
     # Validation des paramètres de date
     if not date :
         return Response(
@@ -772,7 +813,7 @@ def liste_batterie_data_by_date_and_id_module(request, module_id,date):
 # listeDureebatteryMensuelleByIdModuleAndMonth
 @api_view(["GET"])
 def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id):
-     
+
     today = datetime.today()
     current_year = today.year
     current_month = today.month
@@ -1040,8 +1081,8 @@ def get_weekly_battery_data_for_month(request, module_id, year, month):
 @api_view(["GET"])
 def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week):
     """
-    Retrieve battery data for a specific day with real timestamps.
-    Returns all individual data points with their exact timestamps.
+    Retrieve real battery data for a specific day with exact timestamps.
+    Returns all individual data points as inserted by users for accurate daily visualization.
     """
     try:
         week_number = int(week_number)
@@ -1051,7 +1092,104 @@ def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week
     # Traduction des jours de la semaine (français -> anglais)
     french_to_english_days = {
         "lundi": "Monday",
-        "mardi": "Tuesday", 
+        "mardi": "Tuesday",
+        "mercredi": "Wednesday",
+        "jeudi": "Thursday",
+        "vendredi": "Friday",
+        "samedi": "Saturday",
+        "dimanche": "Sunday",
+    }
+
+    # Traduire le jour en anglais
+    day_of_week = french_to_english_days.get(day_of_week.lower())
+    if not day_of_week:
+        return Response(
+            {"error": "Invalid day_of_week. Please provide a valid day in French."},
+            status=400,
+        )
+
+    # Calculer la date du premier jour de l'année
+    first_day_of_year = datetime(datetime.today().year, 1, 1)
+
+    # Ajuster pour commencer la semaine un lundi si ce n'est pas le cas
+    if first_day_of_year.weekday() != 0:  # 0 = lundi
+        first_day_of_year -= timedelta(days=first_day_of_year.weekday())
+
+    # Calculer la date du début de la semaine demandée
+    start_of_week = first_day_of_year + timedelta(weeks=week_number - 1)
+
+    # Trouver l'index du jour spécifié
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    day_of_week_index = days_of_week.index(day_of_week)
+
+    # Calculer la date cible
+    target_day = start_of_week + timedelta(days=day_of_week_index)
+
+    # Plage de temps pour inclure toutes les heures de la journée cible
+    start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
+    end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
+
+    # Récupérer toutes les données réelles de batterie pour cette journée
+    battery_data = BatteryData.objects.filter(
+        battery__module_id=module_id,
+        createdAt__range=(start_of_day, end_of_day),
+    ).order_by("createdAt").values(
+        "createdAt", "tension", "puissance", "courant", "energy", "pourcentage"
+    )
+
+    # Convertir les données au format professionnel pour les graphiques
+    result = []
+    for entry in battery_data:
+        created_at = entry["createdAt"]
+
+        # Calculer l'heure décimale pour un affichage précis
+        hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+
+        # Formatage professionnel des données
+        data_point = {
+            "timestamp": created_at.isoformat(),
+            "hour_decimal": round(hour_decimal, 3),
+            "hour_label": created_at.strftime("%H:%M:%S"),
+            "date_label": created_at.strftime("%d/%m/%Y"),
+            "tension": float(entry["tension"]) if entry["tension"] else 0.0,
+            "puissance": float(entry["puissance"]) if entry["puissance"] else 0.0,
+            "courant": float(entry["courant"]) if entry["courant"] else 0.0,
+            "energy": float(entry["energy"]) if entry["energy"] else 0.0,
+            "pourcentage": float(entry["pourcentage"]) if entry["pourcentage"] else 0.0,
+        }
+        result.append(data_point)
+
+    # Métadonnées professionnelles
+    response_data = {
+        "date": target_day.strftime("%Y-%m-%d"),
+        "day_name": day_of_week,
+        "week_number": week_number,
+        "total_records": len(result),
+        "data_range": {
+            "start": start_of_day.isoformat(),
+            "end": end_of_day.isoformat()
+        },
+        "data": result
+    }
+
+    return Response(response_data)
+
+
+@api_view(["GET"])
+def get_detailed_battery_data_for_week(request, module_id, week_number, day_of_week):
+    """
+    Retrieve detailed battery data for a specific day with real timestamps.
+    Returns all individual data points with their exact timestamps for ImprovedDailyLine component.
+    """
+    try:
+        week_number = int(week_number)
+    except ValueError:
+        return Response({"error": "week_number must be an integer."}, status=400)
+
+    # Traduction des jours de la semaine (français -> anglais)
+    french_to_english_days = {
+        "lundi": "Monday",
+        "mardi": "Tuesday",
         "mercredi": "Wednesday",
         "jeudi": "Thursday",
         "vendredi": "Friday",
@@ -1102,7 +1240,7 @@ def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week
         # Convertir le timestamp en heure décimale (ex: 14.5 pour 14h30)
         created_at = entry["createdAt"]
         hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
-        
+
         result.append({
             "timestamp": created_at.isoformat(),
             "hour_decimal": round(hour_decimal, 2),
@@ -1114,13 +1252,406 @@ def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week
             "pourcentage": float(entry["pourcentage"]) if entry["pourcentage"] else 0,
         })
 
-    # Informations supplémentaires
-    response_data = {
-        "date": target_day.strftime("%Y-%m-%d"),
-        "day_name": day_of_week,
-        "week_number": week_number,
-        "total_records": len(result),
-        "data": result
-    }
+    return Response(result)
 
-    return Response(response_data)
+
+@api_view(["GET"])
+def get_current_battery_level(request, module_id):
+    """
+    Récupère le niveau de batterie actuel pour un module donné
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        # Récupérer la batterie associée au module
+        battery = get_object_or_404(Battery, module=module)
+
+        # Récupérer la donnée la plus récente de la batterie
+        latest_battery_data = BatteryData.objects.filter(
+            battery=battery
+        ).order_by('-createdAt').first()
+
+        if not latest_battery_data:
+            return Response({
+                "level": 0,
+                "status": "no_data",
+                "message": "Aucune donnée de batterie disponible"
+            }, status=status.HTTP_200_OK)
+
+        # Calculer le niveau de batterie
+        battery_level = float(latest_battery_data.pourcentage) if latest_battery_data.pourcentage else 0
+
+        # Déterminer le statut basé sur le niveau
+        if battery_level >= 80:
+            battery_status = "excellent"
+        elif battery_level >= 60:
+            battery_status = "good"
+        elif battery_level >= 40:
+            battery_status = "medium"
+        elif battery_level >= 20:
+            battery_status = "low"
+        else:
+            battery_status = "critical"
+
+        response_data = {
+            "level": battery_level,
+            "status": battery_status,
+            "voltage": float(latest_battery_data.tension) if latest_battery_data.tension else 0,
+            "current": float(latest_battery_data.courant) if latest_battery_data.courant else 0,
+            "power": float(latest_battery_data.puissance) if latest_battery_data.puissance else 0,
+            "energy": float(latest_battery_data.energy) if latest_battery_data.energy else 0,
+            "last_update": latest_battery_data.createdAt.isoformat(),
+            "battery_info": {
+                "id": battery.id,
+                "marque": battery.marque,
+                "puissance": battery.puissance,
+                "voltage": battery.voltage,
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Modules.DoesNotExist:
+        return Response({
+            "error": "Module non trouvé"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Battery.DoesNotExist:
+        return Response({
+            "error": "Aucune batterie associée à ce module"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({
+            "error": "Erreur interne du serveur",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+def get_monthly_production_summary(request, module_id):
+    """
+    Récupère un résumé de la production mensuelle pour tous les composants d'un module
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        current_year = datetime.now().year
+        current_month = datetime.now().month
+
+        # Récupérer les données de production des panneaux
+        from panneau.models import PanneauData
+        panneau_production = PanneauData.objects.filter(
+            panneau__module=module,
+            createdAt__year=current_year,
+            createdAt__month=current_month
+        ).aggregate(
+            total_production=Sum(Cast("energy", FloatField()))
+        )
+
+        # Récupérer les données de consommation des prises
+        from prise.models import PriseData
+        prise_consumption = PriseData.objects.filter(
+            prise__module=module,
+            createdAt__year=current_year,
+            createdAt__month=current_month
+        ).aggregate(
+            total_consumption=Sum(Cast("energy", FloatField()))
+        )
+
+        # Récupérer les données de stockage des batteries
+        battery_storage = BatteryData.objects.filter(
+            battery__module=module,
+            createdAt__year=current_year,
+            createdAt__month=current_month
+        ).aggregate(
+            total_storage=Sum(Cast("energy", FloatField()))
+        )
+
+        # Calculer les totaux
+        total_production = panneau_production.get('total_production', 0) or 0
+        total_consumption = prise_consumption.get('total_consumption', 0) or 0
+        total_storage = battery_storage.get('total_storage', 0) or 0
+
+        # Calculer l'efficacité
+        efficiency = 0
+        if total_production > 0:
+            efficiency = ((total_production - total_consumption) / total_production) * 100
+
+        response_data = {
+            "month": current_month,
+            "year": current_year,
+            "production": {
+                "total": round(total_production, 2),
+                "unit": "kWh",
+                "source": "panneaux_solaires"
+            },
+            "consumption": {
+                "total": round(total_consumption, 2),
+                "unit": "kWh",
+                "source": "prises"
+            },
+            "storage": {
+                "total": round(total_storage, 2),
+                "unit": "kWh",
+                "source": "batteries"
+            },
+            "balance": {
+                "net": round(total_production - total_consumption, 2),
+                "efficiency": round(efficiency, 1),
+                "unit": "kWh"
+            },
+            "module_info": {
+                "id": module.id,
+                "name": getattr(module, 'name', 'Module'),
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Modules.DoesNotExist:
+        return Response({
+            "error": "Module non trouvé"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({
+            "error": "Erreur interne du serveur",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+def get_battery_relay_state_by_module(request, module_id):
+    """
+    Récupère l'état du relais de la batterie pour un module donné
+    """
+    try:
+        # Vérifier si le module existe
+        module = get_object_or_404(Modules, id=module_id)
+
+        # Récupérer la batterie associée au module
+        battery = Battery.objects.filter(module=module).first()
+
+        if not battery:
+            return Response({
+                "couleur": "gray",
+                "active": False,
+                "message": "Aucune batterie trouvée pour ce module"
+            }, status=status.HTTP_200_OK)
+
+        # Récupérer l'état du relais de la batterie
+        relay_state = BatteryRelaiState.objects.filter(battery=battery).first()
+
+        if not relay_state:
+            # Créer un état par défaut si aucun n'existe
+            relay_state = BatteryRelaiState.objects.create(
+                battery=battery,
+                active=False,
+                state="low",
+                couleur="red",
+                valeur="0"
+            )
+
+        return Response({
+            "couleur": relay_state.couleur,
+            "active": relay_state.active,
+            "state": relay_state.state,
+            "valeur": relay_state.valeur,
+            "battery_id": battery.id
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": "Une erreur s'est produite lors de la récupération de l'état du relais",
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+# =============================================graphique==============================
+
+
+# ========================================
+# APIs pour BATTERY
+# ========================================
+
+@api_view(["GET"])
+def get_daily_battery_data(request, module_id, week_number=None, day_of_week=None):
+    """
+    API pour récupérer les données journalières des batteries.
+    """
+    
+    try:
+        target_date = _calculate_target_date(week_number, day_of_week)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_of_day = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+        
+        # Récupérer les données battery
+        battery_data = BatteryData.objects.filter(
+            battery__module_id=module_id,
+            createdAt__range=(start_of_day, end_of_day)
+        ).order_by("createdAt").values(
+            "createdAt", "tension", "puissance", "courant", "energy", "pourcentage"
+        )
+        
+        # Formater les données
+        result = []
+        for entry in battery_data:
+            created_at = entry["createdAt"]
+            hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            
+            data_point = {
+                "timestamp": created_at.isoformat(),
+                "hour_decimal": round(hour_decimal, 3),
+                "hour_label": created_at.strftime("%H:%M:%S"),
+                "date_label": created_at.strftime("%d/%m/%Y"),
+                "tension": float(entry["tension"]) if entry["tension"] else 0.0,
+                "puissance": float(entry["puissance"]) if entry["puissance"] else 0.0,
+                "courant": float(entry["courant"]) if entry["courant"] else 0.0,
+                "energy": float(entry["energy"]) if entry["energy"] else 0.0,
+                "pourcentage": float(entry["pourcentage"]) if entry["pourcentage"] else 0.0,
+            }
+            result.append(data_point)
+        
+        response_data = {
+            "component_type": "battery",
+            "module_id": module_id,
+            "date": target_date.strftime("%Y-%m-%d"),
+            "day_name": _get_french_day_name(target_date.strftime("%A")),
+            "week_number": target_date.isocalendar()[1],
+            "total_records": len(result),
+            "last_updated": timezone.now().isoformat(),
+            "data_range": {
+                "start": start_of_day.isoformat(),
+                "end": end_of_day.isoformat()
+            },
+            "data": result
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            "error": f"Error retrieving battery data: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])  
+def get_realtime_battery_data(request, module_id):
+    """
+    API pour récupérer les données battery en temps réel (dernières 24h).
+    """
+    
+    now = timezone.now()
+    yesterday = now - timedelta(hours=24)
+    
+    try:
+        # Récupérer les données des dernières 24h
+        queryset = BatteryData.objects.filter(
+            battery__module_id=module_id,
+            createdAt__gte=yesterday
+        ).order_by("-createdAt")[:100]
+        
+        # Formater les données
+        data = []
+        for entry in queryset:
+            created_at = entry.createdAt
+            hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            
+            formatted_entry = {
+                "timestamp": created_at.isoformat(),
+                "hour_decimal": round(hour_decimal, 3),
+                "hour_label": created_at.strftime("%H:%M:%S"),
+                "date_label": created_at.strftime("%d/%m/%Y"),
+                "tension": float(entry.tension) if entry.tension else 0.0,
+                "puissance": float(entry.puissance) if entry.puissance else 0.0,
+                "courant": float(entry.courant) if entry.courant else 0.0,
+                "energy": float(entry.energy) if entry.energy else 0.0,
+                "pourcentage": float(entry.pourcentage) if entry.pourcentage else 0.0,
+            }
+            data.append(formatted_entry)
+        
+        data.reverse()
+        
+        response_data = {
+            "component_type": "battery",
+            "module_id": module_id,
+            "realtime": True,
+            "data_period": "24h",
+            "total_records": len(data),
+            "last_updated": now.isoformat(),
+            "refresh_interval": 30,
+            "data": data
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            "error": f"Error retrieving realtime battery data: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+def get_battery_statistics(request, module_id):
+    """
+    API pour récupérer les statistiques du jour pour les batteries.
+    """
+    
+    try:
+        today = timezone.now().date()
+        start_of_day = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_of_day = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
+        
+        # Récupérer les données du jour
+        battery_data = BatteryData.objects.filter(
+            battery__module_id=module_id,
+            createdAt__range=(start_of_day, end_of_day)
+        ).values("tension", "puissance", "courant", "energy", "pourcentage")
+        
+        if not battery_data:
+            return Response({
+                "component_type": "battery",
+                "date": today.strftime("%Y-%m-%d"),
+                "statistics": {
+                    "total_records": 0,
+                    "message": "No data available for today"
+                }
+            })
+        
+        # Calculer les statistiques
+        metrics = ['tension', 'puissance', 'courant', 'energy', 'pourcentage']
+        statistics = {}
+        
+        for metric in metrics:
+            values = [float(entry[metric]) for entry in battery_data if entry[metric]]
+            if values:
+                statistics[metric] = {
+                    "current": values[-1],
+                    "min": min(values),
+                    "max": max(values),
+                    "avg": round(sum(values) / len(values), 2),
+                    "total": round(sum(values), 2) if metric == 'energy' else None
+                }
+        
+        response_data = {
+            "component_type": "battery",
+            "module_id": module_id,
+            "date": today.strftime("%Y-%m-%d"),
+            "total_records": len(battery_data),
+            "statistics": statistics,
+            "last_updated": timezone.now().isoformat()
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            "error": f"Error calculating battery statistics: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

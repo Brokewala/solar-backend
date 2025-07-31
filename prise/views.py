@@ -19,6 +19,8 @@ from calendar import monthrange
 from django.db.models.functions import ExtractWeek, ExtractWeekDay
 # from datetime import timezone
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 # utils
 from users.utils import _calculate_target_date,_get_french_day_name
@@ -42,14 +44,41 @@ from .serializers import PriseAllSerializer
 
 # view
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère toutes les prises électriques avec leurs données complètes",
+    responses={
+        200: PriseAllSerializer(many=True),
+        400: 'Bad Request',
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_all_Prise(request):
     prise = Prise.objects.all().order_by("-createdAt")
-    serializer = PriseAllSerializer(Prise, many=True)
+    serializer = PriseAllSerializer(prise, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère une prise électrique spécifique par l'ID du module",
+    manual_parameters=[
+        openapi.Parameter(
+            'module_id',
+            openapi.IN_PATH,
+            description="Identifiant unique du module",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: PriseSerializer,
+        404: openapi.Response('Prise non trouvée'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_Prise_by_module(request, module_id):

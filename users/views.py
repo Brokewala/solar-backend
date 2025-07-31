@@ -17,6 +17,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 # from django.db import transaction
 from django.template.loader import render_to_string
 from module.models import Modules
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 # model
 from .models import ProfilUser,UserToken
 
@@ -34,12 +36,36 @@ def send_email_notification(email_content, email, titre):
     Util.send_email(content)
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Teste l'envoi d'email",
+    responses={
+        200: openapi.Response('Email envoyé avec succès'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 def teste_email(request):
    send_email_notification("salut",'brokewala@gmail.com',"teste salut")
    return Response({"message": "Email sent successfully"})
 
 
+@swagger_auto_schema(
+    method='post',
+    operation_description="Décode un token JWT",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['token'],
+        properties={
+            'token': openapi.Schema(type=openapi.TYPE_STRING, description='Token JWT à décoder')
+        }
+    ),
+    responses={
+        200: openapi.Response('Token décodé avec succès'),
+        400: openapi.Response('Token manquant'),
+        401: openapi.Response('Token expiré ou invalide')
+    }
+)
 @api_view(["POST"])
 # @permission_classes([IsAuthenticated])
 def decode_token(request):
@@ -81,6 +107,22 @@ def decode_token(request):
 
 
 # user by token
+@swagger_auto_schema(
+    method='post',
+    operation_description="Récupère un utilisateur par son token JWT",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['token'],
+        properties={
+            'token': openapi.Schema(type=openapi.TYPE_STRING, description='Token JWT de l\'utilisateur')
+        }
+    ),
+    responses={
+        200: ProfilUserSerializer,
+        401: openapi.Response('Token expiré'),
+        404: openapi.Response('Utilisateur non trouvé')
+    }
+)
 @api_view(["POST"])
 def user_by_token(request):
     # if is none
@@ -159,6 +201,25 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 # create_admin_of_user
+@swagger_auto_schema(
+    method='post',
+    operation_description="Crée un utilisateur administrateur",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['email', 'password', 'first_name', 'last_name'],
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING, description='Adresse email unique'),
+            'password': openapi.Schema(type=openapi.TYPE_STRING, description='Mot de passe'),
+            'first_name': openapi.Schema(type=openapi.TYPE_STRING, description='Prénom'),
+            'last_name': openapi.Schema(type=openapi.TYPE_STRING, description='Nom de famille')
+        }
+    ),
+    responses={
+        201: ProfilUserSerializer,
+        400: openapi.Response('Email déjà existant ou données manquantes'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["POST"])
 def create_admin_of_user(request):
     email = request.data.get("email")
@@ -191,6 +252,15 @@ def create_admin_of_user(request):
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère tous les administrateurs",
+    responses={
+        200: ProfilUserSerializer(many=True),
+        404: openapi.Response('Aucun administrateur trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_all_admin(request):
@@ -202,6 +272,15 @@ def get_all_admin(request):
     serializer = ProfilUserSerializer(user, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère tous les clients",
+    responses={
+        200: ProfilUserSerializer(many=True),
+        404: openapi.Response('Aucun client trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_all_customers(request):
@@ -225,6 +304,27 @@ class ProfilUserModelViewSet(viewsets.ModelViewSet):
 # users
 class UsersAPIView(APIView):
 
+    @swagger_auto_schema(
+        operation_description="Crée un nouvel utilisateur client",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['email', 'password', 'first_name', 'last_name'],
+            properties={
+                'email': openapi.Schema(type=openapi.TYPE_STRING, description='Adresse email unique'),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Mot de passe'),
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING, description='Prénom'),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING, description='Nom de famille'),
+                'code_postal': openapi.Schema(type=openapi.TYPE_STRING, description='Code postal'),
+                'adresse': openapi.Schema(type=openapi.TYPE_STRING, description='Adresse'),
+                'phone': openapi.Schema(type=openapi.TYPE_STRING, description='Numéro de téléphone')
+            }
+        ),
+        responses={
+            201: ProfilUserSerializer,
+            400: openapi.Response('Email déjà existant ou données manquantes'),
+            500: 'Internal Server Error'
+        }
+    )
     def post(self, request): 
         email = request.data.get("email")
         if ProfilUser.objects.filter(email=email).exists():
@@ -267,6 +367,28 @@ class UsersAPIView(APIView):
 
     
 # signup with code
+@swagger_auto_schema(
+    method='post',
+    operation_description="Inscription d'un utilisateur avec envoi de code de vérification par email",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['email', 'password', 'first_name', 'last_name'],
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING, description='Adresse email unique'),
+            'password': openapi.Schema(type=openapi.TYPE_STRING, description='Mot de passe'),
+            'first_name': openapi.Schema(type=openapi.TYPE_STRING, description='Prénom'),
+            'last_name': openapi.Schema(type=openapi.TYPE_STRING, description='Nom de famille'),
+            'code_postal': openapi.Schema(type=openapi.TYPE_STRING, description='Code postal'),
+            'adresse': openapi.Schema(type=openapi.TYPE_STRING, description='Adresse'),
+            'phone': openapi.Schema(type=openapi.TYPE_STRING, description='Numéro de téléphone')
+        }
+    ),
+    responses={
+        201: ProfilUserSerializer,
+        400: openapi.Response('Email déjà existant ou données manquantes'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["POST"])
 def signup_user_with_code_in_email(request):
     email = request.data.get("email")
@@ -323,6 +445,24 @@ def signup_user_with_code_in_email(request):
 
 
 # get code of user with user id
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère le code de vérification d'un utilisateur par son ID",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="Identifiant unique de l'utilisateur",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: ProfilUserSerializer,
+        404: openapi.Response('Utilisateur non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 def get_user_code_with_user_id(request, user_id):
     try:
@@ -338,6 +478,24 @@ def get_user_code_with_user_id(request, user_id):
 
 
 # post code of confirmation
+@swagger_auto_schema(
+    method='post',
+    operation_description="Vérifie le code de confirmation d'un utilisateur",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['code', 'user_id'],
+        properties={
+            'code': openapi.Schema(type=openapi.TYPE_STRING, description='Code de vérification'),
+            'user_id': openapi.Schema(type=openapi.TYPE_STRING, description='ID de l\'utilisateur')
+        }
+    ),
+    responses={
+        201: openapi.Response('Code vérifié avec succès, tokens générés'),
+        400: openapi.Response('Code incorrect'),
+        404: openapi.Response('Utilisateur non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["POST"])
 def verify_code_of_user(request):
     code = request.data.get("code")
@@ -374,6 +532,22 @@ def verify_code_of_user(request):
         )
 
 
+@swagger_auto_schema(
+    method='post',
+    operation_description="Renvoye le code de vérification par email",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['user_id'],
+        properties={
+            'user_id': openapi.Schema(type=openapi.TYPE_STRING, description='ID de l\'utilisateur')
+        }
+    ),
+    responses={
+        200: openapi.Response('Code renvoyé avec succès'),
+        404: openapi.Response('Utilisateur non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["POST"])
 # resend code of user
 def resend_code_of_signup(request):
@@ -406,6 +580,30 @@ def resend_code_of_signup(request):
 
 
 # update user profile
+@swagger_auto_schema(
+    method='put',
+    operation_description="Met à jour le profil utilisateur avec authentification par token",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['token', 'first_name', 'last_name', 'email'],
+        properties={
+            'token': openapi.Schema(type=openapi.TYPE_STRING, description='Token JWT de l\'utilisateur'),
+            'first_name': openapi.Schema(type=openapi.TYPE_STRING, description='Prénom'),
+            'last_name': openapi.Schema(type=openapi.TYPE_STRING, description='Nom de famille'),
+            'email': openapi.Schema(type=openapi.TYPE_STRING, description='Adresse email'),
+            'adresse': openapi.Schema(type=openapi.TYPE_STRING, description='Adresse'),
+            'code_postal': openapi.Schema(type=openapi.TYPE_STRING, description='Code postal'),
+            'phone': openapi.Schema(type=openapi.TYPE_STRING, description='Numéro de téléphone')
+        }
+    ),
+    responses={
+        200: ProfilUserSerializer,
+        400: openapi.Response('Token manquant ou email déjà existant'),
+        401: openapi.Response('Token expiré ou invalide'),
+        404: openapi.Response('Utilisateur non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["PUT"])
 def update_user_profile(request):
     """
@@ -472,5 +670,4 @@ def update_user_profile(request):
 
     # Retourner les données mises à jour
     serializer = ProfilUserSerializer(user, many=False)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
+    return Response(serializer.data, status=status.HTTP_200_OK) 

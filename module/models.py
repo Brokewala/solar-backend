@@ -23,7 +23,9 @@ class Modules(models.Model):
     identifiant = models.CharField(max_length=200,blank=True,null=True)
     password = models.CharField(max_length=200,blank=True,null=True)
     active = models.BooleanField(default=False)
+    activation_code = models.CharField(max_length=100, unique=True,blank=True,null=True)
     createdAt = models.DateTimeField(auto_now_add=True)
+    activated_at = models.DateTimeField(null=True, blank=True)
     updatedAt = models.DateTimeField(auto_now=True)
 
 

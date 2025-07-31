@@ -8,6 +8,8 @@ from rest_framework.decorators import api_view
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 # models
 from users.models import ProfilUser
@@ -21,6 +23,14 @@ from .serializers import ReportCommentSerializer
 from .serializers import ReportStateSerializer
 
 # view
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère tous les rapports",
+    responses={
+        200: ReportSerializer(many=True),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_all_Report(request):
@@ -28,6 +38,23 @@ def get_all_Report(request):
     serializer = ReportSerializer(report_data, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère tous les rapports d'un utilisateur",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="Identifiant unique de l'utilisateur",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: ReportSerializer(many=True),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_report_by_user(request, user_id):

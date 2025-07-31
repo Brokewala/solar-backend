@@ -8,6 +8,8 @@ from rest_framework.decorators import api_view
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 # models
 from .models import Modules
@@ -25,6 +27,15 @@ from .serializers import ModulesDetailSerializer
 
 
 # get all module
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère tous les modules",
+    responses={
+        200: ModulesSerializer(many=True),
+        400: 'Bad Request',
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_all_module(request):
@@ -33,6 +44,32 @@ def get_all_module(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@swagger_auto_schema(
+    method='post',
+    operation_description="Crée un module complet avec batterie, panneau et prise",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['user_id', 'puissance_battery', 'voltage_battery', 'marque_battery', 'puissance_panneau', 'voltage_panneau', 'marque_panneau', 'name_prise', 'voltage_prise'],
+        properties={
+            'identifiant': openapi.Schema(type=openapi.TYPE_STRING, description='Identifiant du module'),
+            'password': openapi.Schema(type=openapi.TYPE_STRING, description='Mot de passe du module'),
+            'user_id': openapi.Schema(type=openapi.TYPE_STRING, description='ID de l\'utilisateur'),
+            'puissance_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Puissance de la batterie'),
+            'voltage_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Tension de la batterie'),
+            'marque_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Marque de la batterie'),
+            'puissance_panneau': openapi.Schema(type=openapi.TYPE_STRING, description='Puissance du panneau'),
+            'voltage_panneau': openapi.Schema(type=openapi.TYPE_STRING, description='Tension du panneau'),
+            'marque_panneau': openapi.Schema(type=openapi.TYPE_STRING, description='Marque du panneau'),
+            'name_prise': openapi.Schema(type=openapi.TYPE_STRING, description='Nom de la prise'),
+            'voltage_prise': openapi.Schema(type=openapi.TYPE_STRING, description='Tension de la prise')
+        }
+    ),
+    responses={
+        201: ModulesSerializer,
+        400: openapi.Response('Champs requis manquants'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["POST"])
 def create_module_all(request):
     identifiant = request.data.get("identifiant")
@@ -114,6 +151,24 @@ def create_module_all(request):
 
 
 # get all module
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère un module par l'ID de l'utilisateur",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="Identifiant unique de l'utilisateur",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: ModulesSerializer,
+        404: openapi.Response('Module non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_module_by_user(request, user_id):
@@ -128,6 +183,24 @@ def get_one_module_by_user(request, user_id):
         )
 
 #  get module by reference
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère un module par sa référence",
+    manual_parameters=[
+        openapi.Parameter(
+            'reference',
+            openapi.IN_PATH,
+            description="Référence du module",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: ModulesSerializer,
+        404: openapi.Response('Module non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(['GET'])
 def get_module_by_reference(request, reference):
     try:
@@ -153,6 +226,24 @@ class ModulesAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+    @swagger_auto_schema(
+        operation_description="Crée un nouveau module",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['user'],
+            properties={
+                'reference': openapi.Schema(type=openapi.TYPE_STRING, description='Référence du module'),
+                'identifiant': openapi.Schema(type=openapi.TYPE_STRING, description='Identifiant du module'),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Mot de passe du module'),
+                'user': openapi.Schema(type=openapi.TYPE_STRING, description='ID de l\'utilisateur')
+            }
+        ),
+        responses={
+            201: ModulesSerializer,
+            400: openapi.Response('Module déjà existant ou données manquantes'),
+            500: 'Internal Server Error'
+        }
+    )
     def post(self, request):
         # gr_code = request.FILES.get("gr_code")
         reference = request.data.get("reference")
@@ -198,11 +289,55 @@ class ModulesAPIView(APIView):
         serializer = ModulesSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @swagger_auto_schema(
+        operation_description="Récupère un module par son ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'module_id',
+                openapi.IN_PATH,
+                description="Identifiant unique du module",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            200: ModulesSerializer,
+            404: openapi.Response('Module non trouvé'),
+            500: 'Internal Server Error'
+        }
+    )
     def get(self, request, module_id):
         module = self.get_object(module_id=module_id)
         serializer = ModulesSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Met à jour un module par son ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'module_id',
+                openapi.IN_PATH,
+                description="Identifiant unique du module",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'reference': openapi.Schema(type=openapi.TYPE_STRING, description='Référence du module'),
+                'identifiant': openapi.Schema(type=openapi.TYPE_STRING, description='Identifiant du module'),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Mot de passe du module'),
+                'user': openapi.Schema(type=openapi.TYPE_STRING, description='ID de l\'utilisateur'),
+                'active': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Statut actif du module')
+            }
+        ),
+        responses={
+            200: ModulesSerializer,
+            404: openapi.Response('Module non trouvé'),
+            500: 'Internal Server Error'
+        }
+    )
     def put(self, request, module_id):
         module = self.get_object(module_id=module_id)
         # variables
@@ -247,6 +382,23 @@ class ModulesAPIView(APIView):
         serializer = ModulesSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Supprime un module par son ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'module_id',
+                openapi.IN_PATH,
+                description="Identifiant unique du module",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            204: 'Module supprimé avec succès',
+            404: openapi.Response('Module non trouvé'),
+            500: 'Internal Server Error'
+        }
+    )
     def delete(self, request, module_id):
         module = self.get_object(module_id=module_id)
         module.delete()
@@ -256,6 +408,24 @@ class ModulesAPIView(APIView):
 
 
 # Toggle module active status
+@swagger_auto_schema(
+    method='put',
+    operation_description="Bascule le statut actif/inactif d'un module",
+    manual_parameters=[
+        openapi.Parameter(
+            'module_id',
+            openapi.IN_PATH,
+            description="Identifiant unique du module",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response('Statut basculé avec succès'),
+        404: openapi.Response('Module non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["PUT"])
 def toggle_module_active(request, module_id):
     """
@@ -282,6 +452,24 @@ def toggle_module_active(request, module_id):
 
 
 # Get module with all related elements (battery, panneau, prise)
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère un module avec tous ses éléments associés (batterie, panneau, prise)",
+    manual_parameters=[
+        openapi.Parameter(
+            'module_id',
+            openapi.IN_PATH,
+            description="Identifiant unique du module",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response('Module avec éléments associés'),
+        404: openapi.Response('Module non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 def get_module_with_elements(request, module_id):
     """
@@ -352,6 +540,24 @@ def get_module_with_elements(request, module_id):
 
 
 # get all ModulesInfo
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère les informations d'un module",
+    manual_parameters=[
+        openapi.Parameter(
+            'module_id',
+            openapi.IN_PATH,
+            description="Identifiant unique du module",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: ModulesInfoSerializer,
+        404: openapi.Response('Informations du module non trouvées'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_moduleinfo_by_module(request, module_id):
@@ -372,6 +578,23 @@ class ModulesInfoAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+    @swagger_auto_schema(
+        operation_description="Crée de nouvelles informations de module",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['module', 'name', 'description'],
+            properties={
+                'module': openapi.Schema(type=openapi.TYPE_STRING, description='ID du module'),
+                'name': openapi.Schema(type=openapi.TYPE_STRING, description='Nom des informations'),
+                'description': openapi.Schema(type=openapi.TYPE_STRING, description='Description des informations')
+            }
+        ),
+        responses={
+            201: ModulesInfoSerializer,
+            400: openapi.Response('Données manquantes'),
+            500: 'Internal Server Error'
+        }
+    )
     def post(self, request):
         module = request.data.get("module")
         name = request.data.get("name")
@@ -393,11 +616,52 @@ class ModulesInfoAPIView(APIView):
         serializer = ModulesInfoSerializer(module_info, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @swagger_auto_schema(
+        operation_description="Récupère les informations d'un module par leur ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'module_id',
+                openapi.IN_PATH,
+                description="Identifiant unique des informations du module",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            200: ModulesInfoSerializer,
+            404: openapi.Response('Informations du module non trouvées'),
+            500: 'Internal Server Error'
+        }
+    )
     def get(self, request, module_id):
         module = self.get_object(module_id=module_id)
         serializer = ModulesInfoSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Met à jour les informations d'un module par leur ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'module_id',
+                openapi.IN_PATH,
+                description="Identifiant unique des informations du module",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'name': openapi.Schema(type=openapi.TYPE_STRING, description='Nom des informations'),
+                'description': openapi.Schema(type=openapi.TYPE_STRING, description='Description des informations')
+            }
+        ),
+        responses={
+            200: ModulesInfoSerializer,
+            404: openapi.Response('Informations du module non trouvées'),
+            500: 'Internal Server Error'
+        }
+    )
     def put(self, request, module_id):
         module = self.get_object(module_id=module_id)
         # variables
@@ -417,6 +681,23 @@ class ModulesInfoAPIView(APIView):
         serializer = ModulesInfoSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Supprime les informations d'un module par leur ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'module_id',
+                openapi.IN_PATH,
+                description="Identifiant unique des informations du module",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            204: 'Informations du module supprimées avec succès',
+            404: openapi.Response('Informations du module non trouvées'),
+            500: 'Internal Server Error'
+        }
+    )
     def delete(self, request, module_id):
         module = self.get_object(module_id=module_id)
         module.delete()
@@ -426,6 +707,24 @@ class ModulesInfoAPIView(APIView):
 
 
 # get all ModulesDetail
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère les détails d'un module",
+    manual_parameters=[
+        openapi.Parameter(
+            'module_id',
+            openapi.IN_PATH,
+            description="Identifiant unique des détails du module",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: ModulesDetailSerializer,
+        404: openapi.Response('Détails du module non trouvés'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_moduledetail_by_module(request, module_id):
@@ -446,6 +745,23 @@ class ModulesDetailAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+    @swagger_auto_schema(
+        operation_description="Crée de nouveaux détails de module",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['module_info', 'value', 'description'],
+            properties={
+                'module_info': openapi.Schema(type=openapi.TYPE_STRING, description='ID des informations du module'),
+                'value': openapi.Schema(type=openapi.TYPE_STRING, description='Valeur du détail'),
+                'description': openapi.Schema(type=openapi.TYPE_STRING, description='Description du détail')
+            }
+        ),
+        responses={
+            201: ModulesDetailSerializer,
+            400: openapi.Response('Données manquantes'),
+            500: 'Internal Server Error'
+        }
+    )
     def post(self, request):
         module_info = request.data.get("module_info")
         value = request.data.get("value")
@@ -467,11 +783,52 @@ class ModulesDetailAPIView(APIView):
         serializer = ModulesInfoSerializer(module_detail, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @swagger_auto_schema(
+        operation_description="Récupère les détails d'un module par leur ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'module_id',
+                openapi.IN_PATH,
+                description="Identifiant unique des détails du module",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            200: ModulesDetailSerializer,
+            404: openapi.Response('Détails du module non trouvés'),
+            500: 'Internal Server Error'
+        }
+    )
     def get(self, request, module_id):
         module = self.get_object(module_id=module_id)
         serializer = ModulesInfoSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Met à jour les détails d'un module par leur ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'module_id',
+                openapi.IN_PATH,
+                description="Identifiant unique des détails du module",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'name': openapi.Schema(type=openapi.TYPE_STRING, description='Nom des détails'),
+                'description': openapi.Schema(type=openapi.TYPE_STRING, description='Description des détails')
+            }
+        ),
+        responses={
+            200: ModulesDetailSerializer,
+            404: openapi.Response('Détails du module non trouvés'),
+            500: 'Internal Server Error'
+        }
+    )
     def put(self, request, module_id):
         module = self.get_object(module_id=module_id)
         # variables
@@ -491,6 +848,23 @@ class ModulesDetailAPIView(APIView):
         serializer = ModulesInfoSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Supprime les détails d'un module par leur ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'module_id',
+                openapi.IN_PATH,
+                description="Identifiant unique des détails du module",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            204: 'Détails du module supprimés avec succès',
+            404: openapi.Response('Détails du module non trouvés'),
+            500: 'Internal Server Error'
+        }
+    )
     def delete(self, request, module_id):
         module = self.get_object(module_id=module_id)
         module.delete()

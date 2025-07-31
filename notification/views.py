@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.decorators import permission_classes
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 # django
 from django.shortcuts import get_object_or_404
@@ -58,6 +60,24 @@ def send_websocket_notification(user_id, data_notif):
         },
     )
     
+@swagger_auto_schema(
+    method='put',
+    operation_description="Marque une notification comme lue",
+    manual_parameters=[
+        openapi.Parameter(
+            'id_notif',
+            openapi.IN_PATH,
+            description="Identifiant unique de la notification",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: NotificationSerializer,
+        404: openapi.Response('Notification non trouvée'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["PUT"])
 # @permission_classes([IsAuthenticated])
 def read_notification(request,id_notif):
@@ -70,6 +90,24 @@ def read_notification(request,id_notif):
     except Notification.DoesNotExist:
         return Response({"message":"notification not found"},status=status.HTTP_404_NOT_FOUND)
 
+@swagger_auto_schema(
+    method='delete',
+    operation_description="Supprime une notification",
+    manual_parameters=[
+        openapi.Parameter(
+            'id_notif',
+            openapi.IN_PATH,
+            description="Identifiant unique de la notification",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        204: 'Notification supprimée avec succès',
+        404: openapi.Response('Notification non trouvée'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["DELETE"])
 # @permission_classes([IsAuthenticated])
 def delete_notification(request,id_notif):
@@ -81,6 +119,23 @@ def delete_notification(request,id_notif):
         return Response({"message":"notification not found"},status=status.HTTP_404_NOT_FOUND)
 
 
+@swagger_auto_schema(
+    method='put',
+    operation_description="Marque toutes les notifications d'un utilisateur comme lues",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="Identifiant unique de l'utilisateur",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: NotificationSerializer(many=True),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["PUT"])
 # @permission_classes([IsAuthenticated])
 def read_all_notification(request,user_id):
@@ -92,7 +147,23 @@ def read_all_notification(request,user_id):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
- 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère toutes les notifications d'un utilisateur",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="Identifiant unique de l'utilisateur",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: NotificationSerializer(many=True),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_all_by_user_notification(request,user_id):
@@ -100,6 +171,24 @@ def get_all_by_user_notification(request,user_id):
     serializer = NotificationSerializer(notif, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+@swagger_auto_schema(
+    method='delete',
+    operation_description="Supprime toutes les notifications d'un utilisateur",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="Identifiant unique de l'utilisateur",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response('Notifications supprimées avec succès'),
+        404: openapi.Response('Aucune notification trouvée'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["DELETE"])
 # @permission_classes([IsAuthenticated])
 def delete_all_by_user_notification(request,user_id):

@@ -17,6 +17,23 @@ class ProfilUserSerializer(ModelSerializer):
             "groups",
             "user_permissions",
         )
+        extra_kwargs = {
+            'id': {'read_only': True, 'help_text': 'Identifiant unique de l\'utilisateur'},
+            'first_name': {'help_text': 'Prénom de l\'utilisateur'},
+            'last_name': {'help_text': 'Nom de famille de l\'utilisateur'},
+            'email': {'help_text': 'Adresse email unique de l\'utilisateur'},
+            'role': {'help_text': 'Rôle de l\'utilisateur dans le système'},
+            'phone': {'help_text': 'Numéro de téléphone de l\'utilisateur'},
+            'adresse': {'help_text': 'Adresse physique de l\'utilisateur'},
+            'code_postal': {'help_text': 'Code postal de l\'utilisateur'},
+            'code': {'help_text': 'Code d\'identification de l\'utilisateur'},
+            'status': {'help_text': 'Statut actif/inactif de l\'utilisateur'},
+            'is_staff': {'help_text': 'Indique si l\'utilisateur est membre du staff'},
+            'is_superuser': {'help_text': 'Indique si l\'utilisateur est super utilisateur'},
+            'image': {'help_text': 'Photo de profil de l\'utilisateur'},
+            'createdAt': {'read_only': True, 'help_text': 'Date de création du compte'},
+            'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}
+        }
 
 
 class UserTokenSerializer(ModelSerializer):
@@ -25,6 +42,14 @@ class UserTokenSerializer(ModelSerializer):
     class Meta:
         model = UserToken
         fields = "__all__"
+        extra_kwargs = {
+            'id': {'read_only': True, 'help_text': 'Identifiant unique du token'},
+            'user': {'help_text': 'Utilisateur associé à ce token'},
+            'access_token': {'help_text': 'Token d\'accès JWT'},
+            'refresh_token': {'help_text': 'Token de rafraîchissement JWT'},
+            'createdAt': {'read_only': True, 'help_text': 'Date de création du token'},
+            'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}
+        }
 
 
 # token customise

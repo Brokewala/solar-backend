@@ -8,12 +8,12 @@ from rest_framework import permissions
 
 schema_view = get_schema_view(
    openapi.Info(
-      title="Snippets API",
+      title="Solar API",
       default_version='v1',
-      description="Test description",
+      description="API complète pour la gestion de plateforme solaire. Cette API permet de gérer les batteries, panneaux solaires, prises électriques, planifications et notifications pour un système de production d'énergie solaire.",
       terms_of_service="https://www.google.com/policies/terms/",
-      contact=openapi.Contact(email="contact@snippets.local"),
-      license=openapi.License(name="BSD License"),
+      contact=openapi.Contact(email="contact@solar-platform.com"),
+      license=openapi.License(name="MIT License"),
    ),
    public=True,
    permission_classes=(permissions.AllowAny,),

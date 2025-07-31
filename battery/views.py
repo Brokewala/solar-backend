@@ -10,6 +10,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 # from datetime import timezone
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 # utils
 from users.utils import _calculate_target_date,_get_french_day_name
@@ -44,6 +46,15 @@ from .serializers import BatteryRelaiStateSerializer
 from .serializers import BatteryAllSerializer
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère toutes les batteries avec leurs données complètes",
+    responses={
+        200: BatteryAllSerializer(many=True),
+        400: 'Bad Request',
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_all_battery(request):
@@ -52,6 +63,24 @@ def get_all_battery(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère une batterie spécifique par l'ID du module",
+    manual_parameters=[
+        openapi.Parameter(
+            'module_id',
+            openapi.IN_PATH,
+            description="Identifiant unique du module",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: BatterySerializer,
+        404: openapi.Response('Batterie non trouvée'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_battery_by_module(request, module_id):
@@ -65,6 +94,32 @@ def get_one_battery_by_module(request, module_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+@swagger_auto_schema(
+    method='put',
+    operation_description="Met à jour les informations d'une batterie par l'ID du module",
+    manual_parameters=[
+        openapi.Parameter(
+            'module_id',
+            openapi.IN_PATH,
+            description="Identifiant unique du module",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'puissance': openapi.Schema(type=openapi.TYPE_STRING, description='Puissance de la batterie (en W ou kW)'),
+            'voltage': openapi.Schema(type=openapi.TYPE_STRING, description='Tension de la batterie (en V)'),
+            'marque': openapi.Schema(type=openapi.TYPE_STRING, description='Marque du fabricant')
+        }
+    ),
+    responses={
+        200: BatterySerializer,
+        404: openapi.Response('Batterie non trouvée'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["PUT"])
 # @permission_classes([IsAuthenticated])
 def put_battery_by_module(request, module_id):
@@ -109,6 +164,24 @@ class BatteryAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+    @swagger_auto_schema(
+        operation_description="Crée une nouvelle batterie",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['puissance', 'voltage', 'module', 'marque'],
+            properties={
+                'puissance': openapi.Schema(type=openapi.TYPE_STRING, description='Puissance de la batterie (en W ou kW)'),
+                'voltage': openapi.Schema(type=openapi.TYPE_STRING, description='Tension de la batterie (en V)'),
+                'module': openapi.Schema(type=openapi.TYPE_STRING, description='ID du module associé'),
+                'marque': openapi.Schema(type=openapi.TYPE_STRING, description='Marque du fabricant')
+            }
+        ),
+        responses={
+            201: BatterySerializer,
+            400: openapi.Response('Données manquantes ou batterie déjà existante'),
+            500: 'Internal Server Error'
+        }
+    )
     def post(self, request):
         puissance = request.data.get("puissance")
         voltage = request.data.get("voltage")
@@ -142,17 +215,60 @@ class BatteryAPIView(APIView):
         serializer = BatterySerializer(battery, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @swagger_auto_schema(
+        operation_description="Récupère une batterie par son ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'battery_id',
+                openapi.IN_PATH,
+                description="Identifiant unique de la batterie",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            200: BatterySerializer,
+            404: openapi.Response('Batterie non trouvée'),
+            500: 'Internal Server Error'
+        }
+    )
     def get(self, request, battery_id):
-        battery = self.get_object(battery_id=battery_id)
+        battery = self.get_object(battery_id)
         serializer = BatterySerializer(battery, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Met à jour une batterie par son ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'battery_id',
+                openapi.IN_PATH,
+                description="Identifiant unique de la batterie",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'puissance': openapi.Schema(type=openapi.TYPE_STRING, description='Puissance de la batterie (en W ou kW)'),
+                'voltage': openapi.Schema(type=openapi.TYPE_STRING, description='Tension de la batterie (en V)'),
+                'marque': openapi.Schema(type=openapi.TYPE_STRING, description='Marque du fabricant')
+            }
+        ),
+        responses={
+            200: BatterySerializer,
+            404: openapi.Response('Batterie non trouvée'),
+            500: 'Internal Server Error'
+        }
+    )
     def put(self, request, battery_id):
-        battery = self.get_object(battery_id=battery_id)
+        battery = self.get_object(battery_id)
         # variables
         puissance = request.data.get("puissance")
         voltage = request.data.get("voltage")
         marque = request.data.get("marque")
+
         #  puissance
         if puissance:
             battery.puissance = puissance
@@ -171,15 +287,48 @@ class BatteryAPIView(APIView):
         serializer = BatterySerializer(battery, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Supprime une batterie par son ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'battery_id',
+                openapi.IN_PATH,
+                description="Identifiant unique de la batterie",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            204: 'Batterie supprimée avec succès',
+            404: openapi.Response('Batterie non trouvée'),
+            500: 'Internal Server Error'
+        }
+    )
     def delete(self, request, battery_id):
-        battery = self.get_object(battery_id=battery_id)
+        battery = self.get_object(battery_id)
         battery.delete()
-        return Response(
-            {"message": "battery is deleted"}, status=status.HTTP_204_NO_CONTENT
-        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # get all BatteryData
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère toutes les données d'une batterie spécifique",
+    manual_parameters=[
+        openapi.Parameter(
+            'battery_id',
+            openapi.IN_PATH,
+            description="Identifiant unique de la batterie",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: BatteryDataSerializer(many=True),
+        400: 'Bad Request',
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_batterydata_by_battery(request, battery_id):
@@ -200,13 +349,33 @@ class BatteryDataAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+    @swagger_auto_schema(
+        operation_description="Crée de nouvelles données de batterie",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['battery', 'tension', 'puissance', 'courant', 'energy', 'pourcentage'],
+            properties={
+                'battery': openapi.Schema(type=openapi.TYPE_STRING, description='ID de la batterie'),
+                'tension': openapi.Schema(type=openapi.TYPE_STRING, description='Tension actuelle (en V)'),
+                'puissance': openapi.Schema(type=openapi.TYPE_STRING, description='Puissance actuelle (en W)'),
+                'courant': openapi.Schema(type=openapi.TYPE_STRING, description='Courant actuel (en A)'),
+                'energy': openapi.Schema(type=openapi.TYPE_STRING, description='Énergie stockée (en Wh)'),
+                'pourcentage': openapi.Schema(type=openapi.TYPE_STRING, description='Pourcentage de charge (%)')
+            }
+        ),
+        responses={
+            201: BatteryDataSerializer,
+            400: openapi.Response('Données manquantes'),
+            500: 'Internal Server Error'
+        }
+    )
     def post(self, request):
         tension = request.data.get("tension")
         puissance = request.data.get("puissance")
         courant = request.data.get("courant")
         energy = request.data.get("energy")
         pourcentage = request.data.get("pourcentage")
-        battery_id = request.data.get("battery_id")
+        battery = request.data.get("battery")
 
         if (
             tension is None
@@ -214,33 +383,81 @@ class BatteryDataAPIView(APIView):
             or courant is None
             or energy is None
             or pourcentage is None
+            or battery is None
         ):
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
-        # get battery
-        battery = get_object_or_404(Battery, id=battery_id)
 
-        battery_data = BatteryData.objects.create(
+        # get battery
+        battery_data = get_object_or_404(Battery, id=battery)
+
+        # create battery data
+        battery_data_obj = BatteryData.objects.create(
             tension=tension,
-            battery=battery,
             puissance=puissance,
             courant=courant,
             energy=energy,
             pourcentage=pourcentage,
+            battery=battery_data,
         )
         # save into database
-        battery_data.save()
-        serializer = BatteryDataSerializer(battery_data, many=False)
+        battery_data_obj.save()
+
+        serializer = BatteryDataSerializer(battery_data_obj, many=False)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @swagger_auto_schema(
+        operation_description="Récupère des données de batterie par leur ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'battery_data_id',
+                openapi.IN_PATH,
+                description="Identifiant unique des données de batterie",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            200: BatteryDataSerializer,
+            404: openapi.Response('Données de batterie non trouvées'),
+            500: 'Internal Server Error'
+        }
+    )
     def get(self, request, battery_data_id):
-        module = self.get_object(battery_data_id=battery_data_id)
-        serializer = BatteryDataSerializer(module, many=False)
+        battery_data = self.get_object(battery_data_id)
+        serializer = BatteryDataSerializer(battery_data, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Met à jour des données de batterie par leur ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'battery_data_id',
+                openapi.IN_PATH,
+                description="Identifiant unique des données de batterie",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'tension': openapi.Schema(type=openapi.TYPE_STRING, description='Tension actuelle (en V)'),
+                'puissance': openapi.Schema(type=openapi.TYPE_STRING, description='Puissance actuelle (en W)'),
+                'courant': openapi.Schema(type=openapi.TYPE_STRING, description='Courant actuel (en A)'),
+                'energy': openapi.Schema(type=openapi.TYPE_STRING, description='Énergie stockée (en Wh)'),
+                'pourcentage': openapi.Schema(type=openapi.TYPE_STRING, description='Pourcentage de charge (%)')
+            }
+        ),
+        responses={
+            200: BatteryDataSerializer,
+            404: openapi.Response('Données de batterie non trouvées'),
+            500: 'Internal Server Error'
+        }
+    )
     def put(self, request, battery_data_id):
-        battery_data = self.get_object(battery_data_id=battery_data_id)
+        battery_data = self.get_object(battery_data_id)
         # variables
         tension = request.data.get("tension")
         puissance = request.data.get("puissance")
@@ -276,12 +493,27 @@ class BatteryDataAPIView(APIView):
         serializer = BatteryDataSerializer(battery_data, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Supprime des données de batterie par leur ID",
+        manual_parameters=[
+            openapi.Parameter(
+                'battery_data_id',
+                openapi.IN_PATH,
+                description="Identifiant unique des données de batterie",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            204: 'Données de batterie supprimées avec succès',
+            404: openapi.Response('Données de batterie non trouvées'),
+            500: 'Internal Server Error'
+        }
+    )
     def delete(self, request, battery_data_id):
-        battery = self.get_object(battery_data_id=battery_data_id)
-        battery.delete()
-        return Response(
-            {"message": "battery data is deleted"}, status=status.HTTP_204_NO_CONTENT
-        )
+        battery_data = self.get_object(battery_data_id)
+        battery_data.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # get all BatteryPlanning

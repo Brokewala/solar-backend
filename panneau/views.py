@@ -21,6 +21,9 @@ from django.db.models.functions import ExtractWeek, ExtractWeekDay
 from calendar import monthrange
 # from datetime import timezone
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 # utils
 from users.utils import _calculate_target_date,_get_french_day_name
 
@@ -41,6 +44,15 @@ from .serializers import PanneauRelaiStateSerializer
 from .serializers import PenneauAllSerializer
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère tous les panneaux solaires avec leurs données complètes",
+    responses={
+        200: PenneauAllSerializer(many=True),
+        400: 'Bad Request',
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_all_panneau(request):
@@ -49,6 +61,24 @@ def get_all_panneau(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère un panneau solaire spécifique par l'ID du module",
+    manual_parameters=[
+        openapi.Parameter(
+            'module_id',
+            openapi.IN_PATH,
+            description="Identifiant unique du module",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: PanneauSerializer,
+        404: openapi.Response('Panneau non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 def get_one_panneau_by_module(request, module_id):

@@ -80,7 +80,8 @@ class ReportAPIView(APIView):
         priority = request.data.get("priority")
         user = request.data.get("user")
         closed = request.data.get("closed")
-
+        closed_str = str(closed).strip().lower() == "true"
+        
         if user is None or closed is None or description is None or priority is None:
             return Response(
                 {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
@@ -93,7 +94,7 @@ class ReportAPIView(APIView):
         report_data = Report.objects.create(
             description=description,
             priority=priority,
-            closed=closed,
+            closed=closed_str,
             user=user_data,
         )
         # save into database

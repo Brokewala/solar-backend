@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework.exceptions import AuthenticationFailed
 
 # model
 from .models import ProfilUser,UserToken
@@ -72,9 +73,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if isinstance(user, ProfilUser):
             refresh = self.get_token(user)
             # verification of user 
-            if user.status is False or user.is_verified is False :
-                raise serializers.ValidationError("your compte is not validated")
-
+            if not user.status or not user.is_verified:
+                raise AuthenticationFailed({"detail": f"Votre compte est désactivé .", "user_id": user.id})
+       
             # les token
             refresh_token = str(refresh)
             access_token = str(refresh.access_token)

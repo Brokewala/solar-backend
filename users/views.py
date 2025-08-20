@@ -510,6 +510,7 @@ def verify_code_of_user(request):
     # verify code of user
     if code == user.code:
         user.status = True
+        user.is_verified = True
         user.save()
         
         # Création du module si non existant

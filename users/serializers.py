@@ -67,9 +67,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         if user is None:
             raise serializers.ValidationError("Invalid credentials")
+        
 
         if isinstance(user, ProfilUser):
             refresh = self.get_token(user)
+            # verification of user 
+            if user.status is False or user.is_verified is False :
+                raise serializers.ValidationError("your compte is not validated")
 
             # les token
             refresh_token = str(refresh)

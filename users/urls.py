@@ -30,5 +30,8 @@ urlpatterns = [
     path("signup-resend-code", views.resend_code_of_signup),
     # profile update
     path("update-profile", views.update_user_profile),
+    # password reset
+    path("request-reset-password", views.request_reset_password),
+    path("reset-password/<str:uidb64>/<str:token>", views.reset_password, name="reset_password"),
 
 ]

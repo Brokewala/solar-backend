@@ -26,6 +26,11 @@ from .models import ProfilUser,UserToken
 from .serializers import CustomTokenObtainPairSerializer
 from .serializers import ProfilUserSerializer
 from solar_backend.utils import Util
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.urls import reverse
+from django.shortcuts import render
 
 def send_email_notification(email_content, email, titre):
     content = {
@@ -157,6 +162,59 @@ def user_by_token(request):
     # searilise 
     serializer = ProfilUserSerializer(user, many=False)
     return Response(serializer.data,status=status.HTTP_200_OK)
+
+
+# password reset request
+@swagger_auto_schema(
+    method='post',
+    operation_description="Envoie un lien de réinitialisation de mot de passe",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['email'],
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING, description='Adresse email'),
+        }
+    ),
+    responses={
+        200: openapi.Response("Lien envoyé si l'email existe")
+    }
+)
+@api_view(["POST"])
+def request_reset_password(request):
+    email = request.data.get("email")
+    if not email:
+        return Response({'error': 'email is required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        user = ProfilUser.objects.get(email=email)
+    except ProfilUser.DoesNotExist:
+        return Response({'message': 'If an account exists, a reset link was sent'}, status=status.HTTP_200_OK)
+    token = PasswordResetTokenGenerator().make_token(user)
+    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+    reset_link = request.build_absolute_uri(
+        reverse('reset_password', kwargs={'uidb64': uidb64, 'token': token})
+    )
+    email_body = f"Cliquez sur le lien pour réinitialiser votre mot de passe: <a href='{reset_link}'>Réinitialiser</a>"
+    send_email_notification(email_body, user.email, "Réinitialisation de mot de passe")
+    return Response({'message': 'If an account exists, a reset link was sent'}, status=status.HTTP_200_OK)
+
+
+def reset_password(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = ProfilUser.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, ProfilUser.DoesNotExist):
+        user = None
+    if request.method == "POST":
+        password = request.POST.get("password")
+        password2 = request.POST.get("password2")
+        if password != password2:
+            return render(request, "reset_password.html", {"error": "Les mots de passe ne correspondent pas."})
+        if user is not None and PasswordResetTokenGenerator().check_token(user, token):
+            user.set_password(password)
+            user.save()
+            return render(request, "reset_password.html", {"message": "Mot de passe mis à jour avec succès"})
+        return render(request, "reset_password.html", {"error": "Lien invalide"})
+    return render(request, "reset_password.html", {})
 
 
 # refresh token view

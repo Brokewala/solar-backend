@@ -1,11 +1,10 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# Appliquer les migrations
-echo "Appliquer les migrations..."
-python manage.py makemigrations
-python manage.py migrate
+python manage.py collectstatic --noinput
 
-# Démarrer le serveur Django
-echo "Démarrer le serveur Django..."
+if [ "${RUN_MIGRATIONS:-0}" = "1" ]; then
+  python manage.py migrate --noinput
+fi
+
 exec "$@"

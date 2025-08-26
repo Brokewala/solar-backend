@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environments
+.env
+*.env
+
+# Django
+staticfiles/
+media/
+
+# Git
+.git
+.gitignore
+
+# Other
+db.sqlite3

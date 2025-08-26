@@ -14,7 +14,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 # from rest_framework.decorators import permission_classes
 from jwt.exceptions import ExpiredSignatureError
 from rest_framework_simplejwt.tokens import RefreshToken
-# from django.db import transaction
+from django.db import transaction
 from django.template.loader import render_to_string
 from module.models import Modules
 from drf_yasg.utils import swagger_auto_schema
@@ -31,6 +31,8 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.urls import reverse
 from django.shortcuts import render
+from .tasks import send_reset_password_email
+from .throttles import ResetPasswordRateThrottle
 
 def send_email_notification(email_content, email, titre):
     content = {
@@ -166,7 +168,6 @@ def user_by_token(request):
 
 # password reset request
 @swagger_auto_schema(
-    method='post',
     operation_description="Envoie un lien de réinitialisation de mot de passe",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -176,26 +177,33 @@ def user_by_token(request):
         }
     ),
     responses={
-        200: openapi.Response("Lien envoyé si l'email existe")
+        202: openapi.Response("Lien envoyé si l'email existe")
     }
 )
-@api_view(["POST"])
-def request_reset_password(request):
-    email = request.data.get("email")
-    if not email:
-        return Response({'error': 'email is required'}, status=status.HTTP_400_BAD_REQUEST)
-    try:
-        user = ProfilUser.objects.get(email=email)
-    except ProfilUser.DoesNotExist:
-        return Response({'message': 'If an account exists, a reset link was sent'}, status=status.HTTP_200_OK)
-    token = PasswordResetTokenGenerator().make_token(user)
-    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-    reset_link = request.build_absolute_uri(
-        reverse('reset_password', kwargs={'uidb64': uidb64, 'token': token})
-    )
-    email_body = f"Cliquez sur le lien pour réinitialiser votre mot de passe: <a href='{reset_link}'>Réinitialiser</a>"
-    send_email_notification(email_body, user.email, "Réinitialisation de mot de passe")
-    return Response({'message': 'If an account exists, a reset link was sent'}, status=status.HTTP_200_OK)
+class RequestResetPasswordView(APIView):
+    throttle_classes = [ResetPasswordRateThrottle]
+
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({'error': 'email is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = ProfilUser.objects.filter(email=email).first()
+        if user:
+            token = PasswordResetTokenGenerator().make_token(user)
+            uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+            reset_link = request.build_absolute_uri(
+                reverse('reset_password', kwargs={'uidb64': uidb64, 'token': token})
+            )
+            request_id = request.headers.get('X-Request-Id')
+            transaction.on_commit(
+                lambda: send_reset_password_email.delay(user.id, reset_link, request_id)
+            )
+
+        return Response(
+            {'message': 'If an account exists, a reset link was sent'},
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 def reset_password(request, uidb64, token):

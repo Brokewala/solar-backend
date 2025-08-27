@@ -1,5 +1,6 @@
 import os
 import ast
+import tempfile
 from pathlib import Path
 from datetime import timedelta
 
@@ -166,6 +167,8 @@ STATIC_URL = "static/"
 # default location may not be writable (e.g. during collectstatic on read-only
 # filesystems).
 STATIC_ROOT = os.getenv("STATIC_ROOT", os.path.join(BASE_DIR, "staticfiles"))
+if not os.access(os.path.dirname(STATIC_ROOT), os.W_OK):
+    STATIC_ROOT = os.path.join(tempfile.gettempdir(), "staticfiles")
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "assets")
 # Default primary key field type

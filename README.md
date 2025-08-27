@@ -52,6 +52,10 @@ Ce projet est le backend d’une plateforme de gestion et de suivi de systèmes 
    python manage.py runserver
    ```
 
+## 🐛 Débogage
+
+Pour voir les erreurs détaillées en local, lance le serveur avec la commande ci-dessus. Les logs sont maintenant affichés dans la console pour toutes les erreurs Django. Si une variable `DATABASE_URL` non valide est définie dans `.env`, Django essaiera de se connecter à cette base de données et échouera. Supprime ou commente cette variable pour utiliser la base SQLite par défaut `db.sqlite3`.
+
 ---
 
 ## 🔐 Variables d’environnement

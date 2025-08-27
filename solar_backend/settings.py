@@ -161,7 +161,11 @@ USE_I18N = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# Allow overriding the static files destination via the ``STATIC_ROOT``
+# environment variable. This is useful in restricted environments where the
+# default location may not be writable (e.g. during collectstatic on read-only
+# filesystems).
+STATIC_ROOT = os.getenv("STATIC_ROOT", os.path.join(BASE_DIR, "staticfiles"))
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "assets")
 # Default primary key field type

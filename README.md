@@ -20,7 +20,7 @@ Ce projet est le backend d’une plateforme de gestion et de suivi de systèmes 
 1. **Cloner le dépôt**
    ```bash
    git clone <url_du_repo>
-   cd solar_backend
+   cd solar-backend
    ```
 
 2. **Créer un environnement virtuel**
@@ -42,7 +42,12 @@ Ce projet est le backend d’une plateforme de gestion et de suivi de systèmes 
    python manage.py migrate
    ```
 
-6. **Lancer le serveur**
+6. **Générer des données de test (optionnel)**
+   ```bash
+   python create_test_data.py
+   ```
+
+7. **Lancer le serveur**
    ```bash
    python manage.py runserver
    ```
@@ -69,10 +74,14 @@ DATABASE_URL=postgres://user:password@localhost:5432/solar_db
 
 ## 🧪 Lancer les tests
 
-Le projet contient un script de test personnalisé (`test_api.py`) pour tester la base, l’authentification et les endpoints principaux.
+Le projet contient deux scripts de test :
+
+- `test_api.py` – vérifie la base de données, l’authentification et la présence des vues principales ;
+- `test_swagger.py` – contrôle l’accessibilité de la documentation Swagger (nécessite un serveur démarré sur `http://localhost:8000`).
 
 ```bash
 python test_api.py
+python test_swagger.py  # nécessite un serveur en cours d'exécution
 ```
 
 ---

@@ -78,5 +78,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -fsS "http://localhost:${PORT}/health/" || exit 1
 
+# Script d'initialisation : collecte des statiques et migrations
+ENTRYPOINT ["/app/entrypoint.sh"]
 
-CMD ["sh", "-c", "gunicorn solar_backend.wsgi:application --bind 0.0.0.0:${PORT} --workers ${WEB_CONCURRENCY:-2}"]
+# Lancement de Gunicorn avec prise en compte des variables d'environnement
+CMD ["bash", "-c", "gunicorn solar_backend.wsgi:application --bind 0.0.0.0:${PORT} --workers ${WEB_CONCURRENCY:-2}"]

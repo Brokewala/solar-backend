@@ -1,3 +1,9 @@
+"""
+Default values are hard-coded so the app can boot reliably on Railway without
+requiring a `.env` file. Environment variables may override these defaults in
+production.
+"""
+
 import os
 import ast
 import tempfile
@@ -15,9 +21,16 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+# DEBUG is False unless explicitly set to "true"
+DEBUG = os.getenv("DEBUG", "").lower() == "true"
 
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", ".up.railway.app,localhost,127.0.0.1").split(",") if h.strip()]
+DEFAULT_HOSTS = [
+    ".up.railway.app",
+    "localhost",
+    "127.0.0.1",
+    "solar-backend-production-12aa.up.railway.app",
+]
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()] or DEFAULT_HOSTS
 
 
 # Application definition
@@ -126,10 +139,11 @@ if DATABASE_URL:
         "default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600, ssl_require=True)
     }
 else:
+    print("DATABASE_URL not set, falling back to SQLite at /app/db.sqlite3. Postgres is required in production.")
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "NAME": "/app/db.sqlite3",
         }
     }
 
@@ -189,7 +203,9 @@ CORS_ALLOW_HEADERS = (
 )
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "False").lower() == "true"
 CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
-CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "https://*.up.railway.app").split(",") if o.strip()]
+CSRF_TRUSTED_ORIGINS = [f"https://{h.lstrip('.')}" for h in ALLOWED_HOSTS]
+CSRF_TRUSTED_ORIGINS.append("https://solar-backend-production-12aa.up.railway.app")
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -206,7 +222,7 @@ EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", 10))
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 
 # Internationalization
-TIME_ZONE = os.getenv("TIME_ZONE", "UTC")
+TIME_ZONE = os.getenv("TIME_ZONE") or "UTC"
 USE_TZ = True
 
 # Celery configuration

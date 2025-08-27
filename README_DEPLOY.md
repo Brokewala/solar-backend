@@ -1,13 +1,14 @@
 # Deployment Notes
 
-## Required environment variables
-- `DJANGO_SETTINGS_MODULE=solar_backend.settings`
-- `SECRET_KEY` (set a strong value)
-- `DEBUG=false`
-- `TIME_ZONE=Indian/Antananarivo`
-- `ALLOWED_HOSTS=.up.railway.app,solar-backend-production-12aa.up.railway.app,localhost,127.0.0.1`
-- `CSRF_TRUSTED_ORIGINS=https://solar-backend-production-12aa.up.railway.app`
-- `DATABASE_URL=postgresql://user:password@host:5432/dbname?sslmode=require`
+## Key environment variables
+Defaults are hard-coded so the app boots on Railway even without a `.env` file.
+
+| Variable | Default |
+|----------|---------|
+| `PORT` | 8000 (Railway overrides) |
+| `WEB_CONCURRENCY` | 2 |
+| `WEB_TIMEOUT` | 60 |
+| `DATABASE_URL` | fallback SQLite at `/app/db.sqlite3` (Postgres required in prod) |
 
 ## Run command
 ```

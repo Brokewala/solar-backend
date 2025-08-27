@@ -2,7 +2,7 @@ from django.http import HttpResponse
 from django.db import connections, OperationalError
 
 
-def health(request):
+def health_view(request):
     return HttpResponse("ok")
 
 

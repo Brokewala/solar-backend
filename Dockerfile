@@ -79,7 +79,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -fsS "http://localhost:${PORT}/health/" || exit 1
 
 # Script d'initialisation : collecte des statiques et migrations
-ENTRYPOINT ["/app/docker/entrypoint.sh"]
+ENTRYPOINT ["bash", "docker/entrypoint.sh"]
 
 # Lancement de Gunicorn (ASGI) avec gestion des variables d'environnement
 CMD ["bash", "-c", "gunicorn solar_backend.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} --workers ${WEB_CONCURRENCY:-2} --timeout ${WEB_TIMEOUT:-60} --graceful-timeout 30 --keep-alive 5"]

@@ -21,7 +21,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
 
 # Default configuration so the app boots even without a .env file
-DEBUG = False
+DEBUG = True
 TIME_ZONE = os.getenv("TIME_ZONE") or "UTC"
 USE_TZ = True
 ALLOWED_HOSTS = os.getenv(

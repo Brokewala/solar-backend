@@ -39,6 +39,5 @@ python-dotenv==1.0.0
 # Routes==2.5.1
 
 # Production server and database utilities
-gunicorn
 uvicorn[standard]
 dj-database-url

@@ -20,17 +20,18 @@ load_dotenv()
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG is False unless explicitly set to "true"
-DEBUG = os.getenv("DEBUG", "").lower() == "true"
-
-DEFAULT_HOSTS = [
-    ".up.railway.app",
-    "localhost",
-    "127.0.0.1",
-    "solar-backend-production-12aa.up.railway.app",
+# Default configuration so the app boots even without a .env file
+DEBUG = False
+TIME_ZONE = os.getenv("TIME_ZONE") or "UTC"
+USE_TZ = True
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    ".up.railway.app,localhost,127.0.0.1,solar-backend-production-12aa.up.railway.app",
+).split(",")
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{h}" for h in ALLOWED_HOSTS if h and not h.startswith("http")
 ]
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()] or DEFAULT_HOSTS
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 # Application definition
@@ -139,11 +140,10 @@ if DATABASE_URL:
         "default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600, ssl_require=True)
     }
 else:
-    print("DATABASE_URL not set, falling back to SQLite at /app/db.sqlite3. Postgres is required in production.")
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": "/app/db.sqlite3",
+            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
         }
     }
 
@@ -203,12 +203,6 @@ CORS_ALLOW_HEADERS = (
 )
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "False").lower() == "true"
 CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
-CSRF_TRUSTED_ORIGINS = [f"https://{h.lstrip('.')}" for h in ALLOWED_HOSTS]
-CSRF_TRUSTED_ORIGINS.append("https://solar-backend-production-12aa.up.railway.app")
-CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
-
-# Security settings
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Email configuration
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
@@ -220,10 +214,6 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
 EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() == "true"
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", 10))
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
-
-# Internationalization
-TIME_ZONE = os.getenv("TIME_ZONE") or "UTC"
-USE_TZ = True
 
 # Celery configuration
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', os.getenv('REDIS_URL', 'redis://localhost:6379/0'))

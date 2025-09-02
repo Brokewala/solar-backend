@@ -10,8 +10,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.views import TokenObtainPairView
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework.decorators import permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import permission_classes
 from jwt.exceptions import ExpiredSignatureError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db import transaction
@@ -19,6 +19,9 @@ from django.template.loader import render_to_string
 from module.models import Modules
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework.permissions import AllowAny
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 # model
 from .models import ProfilUser,UserToken
 
@@ -182,7 +185,15 @@ def user_by_token(request):
 )
 class RequestResetPasswordView(APIView):
     # throttle_classes = [ResetPasswordRateThrottle]
+    permission_classes = [AllowAny]
+    authentication_classes = [] 
+    
+    
+    @method_decorator(csrf_exempt)  # Bypass CsrfViewMiddleware pour être 100% safe côté Django
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
+    
     def post(self, request):
         email = request.data.get("email")
         if not email:

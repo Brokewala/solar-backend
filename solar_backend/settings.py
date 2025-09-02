@@ -215,17 +215,6 @@ EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL="Support <info@solarsmart.mg>"
 TIME_ZONE = 'Indian/Antananarivo'
 
-# Celery configuration
-CELERY_BROKER_URL = "redis://default:fLKehfSadFGGmRzoBOIxZHlPYOsHklxM@hopper.proxy.rlwy.net:14591/0"
-CELERY_RESULT_BACKEND ="redis://default:fLKehfSadFGGmRzoBOIxZHlPYOsHklxM@hopper.proxy.rlwy.net:14591/1"
-CELERY_TASK_ACKS_LATE = True
-CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.getenv('CELERY_PREFETCH_MULTIPLIER', 4))
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_RESULT_EXPIRES = int(os.getenv('CELERY_RESULT_EXPIRES', 3600))
-CELERY_TASK_ALWAYS_EAGER = True            # exécute localement
-CELERY_TASK_EAGER_PROPAGATES = True   
 
 LOGGING = {
     'version': 1,

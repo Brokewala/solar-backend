@@ -22,7 +22,6 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-517me7l6)qts)dk@or&cs*sj-w
 
 # Default configuration so the app boots even without a .env file
 DEBUG = True
-TIME_ZONE = os.getenv("TIME_ZONE") or "UTC"
 USE_TZ = True
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
@@ -208,13 +207,13 @@ CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "")
 EMAIL_BACKEND ="django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT =587
-EMAIL_HOST_USER =  "rakotoarisoa.ga@gmail.com"
+EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
 EMAIL_HOST_PASSWORD = "loxb wora pney rane"
 EMAIL_USE_TLS = True
-EMAIL_USE_SSL = True
+EMAIL_USE_SSL = False
 EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL="Support <info@solarsmart.mg>"
-
+TIME_ZONE = 'Indian/Antananarivo'
 
 # Celery configuration
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', os.getenv('REDIS_URL', 'redis://localhost:6379/0'))

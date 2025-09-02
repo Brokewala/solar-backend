@@ -14,7 +14,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
 from jwt.exceptions import ExpiredSignatureError
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.db import transaction
 from django.template.loader import render_to_string
 from module.models import Modules
 from drf_yasg.utils import swagger_auto_schema
@@ -208,10 +207,6 @@ class RequestResetPasswordView(APIView):
             )
             request_id = request.headers.get('X-Request-Id')
             send_reset_password_email(email, reset_link, request_id)
-            
-            # transaction.on_commit(
-            #     lambda: send_reset_password_email.delay(user.id, reset_link, request_id)
-            # )
 
         return Response(
             {'message': 'If an account exists, a reset link was sent'},
@@ -505,7 +500,6 @@ def signup_user_with_code_in_email(request):
     
     # save into database
     user.save()
-    # redis
     otp = random.randint(100000, 900000)
     user.code = otp
     user.save()

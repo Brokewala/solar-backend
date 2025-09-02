@@ -65,17 +65,17 @@ logger = logging.getLogger('mail.reset_password')
 #         )
 
 
-def send_reset_password_email(self, user_id, reset_link, request_id=None):
+def send_reset_password_email(self, email, reset_link, request_id=None):
     """Send password reset email asynchronously with retries."""
-    User = get_user_model()
-    user = User.objects.filter(id=user_id).first()
-    extra = {'email': None, 'user_id': user_id, 'request_id': request_id}
+    # User = get_user_model()
+    # user = User.objects.filter(id=user_id).first()
+    # extra = {'email': None, 'user_id': user_id, 'request_id': request_id}
     
-    if not user:
-        logger.warning('user_missing', extra=extra | {'status': 'user_missing'})
-        return
+    # if not user:
+    #     logger.warning('user_missing', extra=extra | {'status': 'user_missing'})
+    #     return
     
-    extra['email'] = user.email
+    # extra['email'] = user.email
     subject = "Réinitialisation de mot de passe"
     text_body = f"Utilisez ce lien pour réinitialiser votre mot de passe : {reset_link}"
     html_body = (
@@ -84,7 +84,7 @@ def send_reset_password_email(self, user_id, reset_link, request_id=None):
     )
     content = {
         "email_body": html_body,
-        "to_email": user.email,
+        "to_email": email,
         "email_subject": subject,
     }
     Util.send_email(content)

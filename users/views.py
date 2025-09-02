@@ -207,7 +207,7 @@ class RequestResetPasswordView(APIView):
                 reverse('reset_password', kwargs={'uidb64': uidb64, 'token': token})
             )
             request_id = request.headers.get('X-Request-Id')
-            send_reset_password_email(user.id, reset_link, request_id)
+            send_reset_password_email(email, reset_link, request_id)
             
             # transaction.on_commit(
             #     lambda: send_reset_password_email.delay(user.id, reset_link, request_id)

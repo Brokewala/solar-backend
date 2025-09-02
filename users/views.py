@@ -181,7 +181,7 @@ def user_by_token(request):
     }
 )
 class RequestResetPasswordView(APIView):
-    throttle_classes = [ResetPasswordRateThrottle]
+    # throttle_classes = [ResetPasswordRateThrottle]
 
     def post(self, request):
         email = request.data.get("email")

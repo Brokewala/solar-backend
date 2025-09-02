@@ -32,7 +32,7 @@ from django.core.mail import EmailMultiAlternatives
 logger = logging.getLogger('mail.reset_password')
 
 
-@shared_task(bind=True, max_retries=3)
+# @shared_task(bind=True, max_retries=3)
 def send_reset_password_email(self, user_id, reset_link, request_id=None):
     """Send password reset email asynchronously with retries."""
     User = get_user_model()

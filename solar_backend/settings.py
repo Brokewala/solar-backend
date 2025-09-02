@@ -18,7 +18,7 @@ load_dotenv()
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-517me7l6)qts)dk@or&cs*sj-wm38p!8p918&k7g9kktdav#i5")
 
 # Default configuration so the app boots even without a .env file
 DEBUG = True

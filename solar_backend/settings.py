@@ -211,8 +211,8 @@ EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
 EMAIL_HOST_PASSWORD = "loxbworapneyrane"
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
-EMAIL_TIMEOUT = 10
-DEFAULT_FROM_EMAIL="Support <info@solarsmart.mg>"
+EMAIL_TIMEOUT = 30
+DEFAULT_FROM_EMAIL="rakotoarisoa.ga@gmail.com"
 TIME_ZONE = 'Indian/Antananarivo'
 
 

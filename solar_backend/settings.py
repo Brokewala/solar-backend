@@ -23,10 +23,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-517me7l6)qts)dk@or&cs*sj-w
 # Default configuration so the app boots even without a .env file
 DEBUG = True
 USE_TZ = True
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    ".up.railway.app,localhost,127.0.0.1,solar-backend-production-12aa.up.railway.app",
-).split(",")
+ALLOWED_HOSTS = ["*"]
+
 CSRF_TRUSTED_ORIGINS = [
     f"https://{h}" for h in ALLOWED_HOSTS if h and not h.startswith("http")
 ]
@@ -203,15 +201,27 @@ CORS_ALLOW_HEADERS = (
     "x-csrftoken",
     "x-requested-with",
 )
-CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "False").lower() == "true"
-CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:4200",
+    "http://localhost:5173",
+    "exp://sttlt3y-anonymous-8081.exp.direct",
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:8001",
+    "http://localhost:8081",
+    "http://192.168.x.x:8081",
+    "http://172.20.10.2:8000",
+    "http://192.168.1.178:8081",
+    "https://solar-backend-production-12aa.up.railway.app"
 
+]
 # Email configuration
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
-EMAIL_HOST_USER = "brokewala@gmail.com"
-EMAIL_HOST_PASSWORD = "jpbk vtla ehim hlqh"
+EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
+EMAIL_HOST_PASSWORD = "loxb wora pney rane"
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 

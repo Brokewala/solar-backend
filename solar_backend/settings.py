@@ -167,10 +167,13 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
-
 LANGUAGE_CODE = "en-us"
 
+TIME_ZONE = "UTC"
+
 USE_I18N = True
+
+USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
@@ -204,16 +207,17 @@ CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "False").lower() ==
 CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
 
 # Email configuration
-EMAIL_BACKEND ="django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT =587
+EMAIL_PORT = 587
 EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
-EMAIL_HOST_PASSWORD = "loxbworapneyrane"
+EMAIL_HOST_PASSWORD = "loxb wora pney rane"
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
-EMAIL_TIMEOUT = 30
-DEFAULT_FROM_EMAIL="rakotoarisoa.ga@gmail.com"
+
+# time
 TIME_ZONE = 'Indian/Antananarivo'
+USE_TZ = True  # On garde True pour stocker en UTC mais savoir faire les conversions
 
 
 LOGGING = {

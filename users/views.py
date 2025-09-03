@@ -55,7 +55,7 @@ def send_email_notification(email_content, email, titre):
 )
 @api_view(["GET"])
 def teste_email(request):
-   send_email_notification("salut",'brokewala@gmail.com',"teste salut")
+   send_email_notification("salut",'lodphin19@gmail.com',"teste salut")
    return Response({"message": "Email sent successfully"})
 
 

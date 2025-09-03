@@ -10,7 +10,7 @@ class Util:
         email = EmailMessage(
             subject=data["email_subject"],
             body=data["email_body"],
-            from_email="Solar | Notification",
+            from_email="rakotoarisoa.ga@gmail.com",
             to=[data["to_email"]],
         )
         email.content_subtype = "html"

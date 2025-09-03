@@ -203,6 +203,7 @@ CORS_ALLOW_HEADERS = (
 )
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
+    "https://solar-backend-production-12aa.up.railway.app",
     "http://localhost:3000",
     "http://localhost:4200",
     "http://localhost:5173",
@@ -213,7 +214,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.x.x:8081",
     "http://172.20.10.2:8000",
     "http://192.168.1.178:8081",
-    "https://solar-backend-production-12aa.up.railway.app"
 
 ]
 # Email configuration

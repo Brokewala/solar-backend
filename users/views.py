@@ -21,6 +21,7 @@ from drf_yasg import openapi
 from rest_framework.permissions import AllowAny
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.core.mail import send_mail
 # model
 from .models import ProfilUser,UserToken
 
@@ -55,8 +56,8 @@ def send_email_notification(email_content, email, titre):
 )
 @api_view(["GET"])
 def teste_email(request):
-   send_email_notification("salut",'lodphin19@gmail.com',"teste salut")
-   return Response({"message": "Email sent successfully"})
+    send_email_notification("salut",'lodphin19@gmail.com',"teste salut")
+    return Response({"message": "Email sent successfully"})
 
 
 @swagger_auto_schema(

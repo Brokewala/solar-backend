@@ -12,6 +12,7 @@ google-cloud-storage
 djangorestframework
 djangorestframework-simplejwt
 drf-yasg
+django-anymail
 # imageio==2.31.1
 # imageio-ffmpeg==0.4.8
 # jwcrypto==1.5.0

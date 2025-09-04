@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     "corsheaders",
     "storages",
+    "anymail",
     "rest_framework",
     "rest_framework_simplejwt",
     "django_filters",
@@ -218,17 +219,25 @@ CORS_ALLOWED_ORIGINS = [
 
 ]
 # Email configuration
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
-EMAIL_HOST_PASSWORD = "loxb wora pney rane"
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
+# EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+# EMAIL_HOST = "smtp.gmail.com"
+# EMAIL_PORT = 587
+# EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
+# EMAIL_HOST_PASSWORD = "loxb wora pney rane"
+# EMAIL_USE_TLS = True
+# EMAIL_USE_SSL = False
 
 # time
 TIME_ZONE = 'Indian/Antananarivo'
 USE_TZ = True  # On garde True pour stocker en UTC mais savoir faire les conversions
+
+# ================
+EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+ANYMAIL = {
+    "BREVO_API_KEY":os.getenv("BREVO_API_KEY") 
+}
+DEFAULT_FROM_EMAIL = 'solar smart system <rakotoarisoa.ga@gmail.com>'
+SERVER_EMAIL = "brokewala@gmail.com" 
 
 
 LOGGING = {

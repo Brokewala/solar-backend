@@ -229,7 +229,7 @@ def reset_password(request, uidb64, token):
         if user is not None and PasswordResetTokenGenerator().check_token(user, token):
             user.set_password(password)
             user.save()
-            return render(request, "reset_password.html", {"message": "Mot de passe mis à jour avec succès"})
+            return render(request, "password_reset_success.html")
         return render(request, "reset_password.html", {"error": "Lien invalide"})
     return render(request, "reset_password.html", {})
 

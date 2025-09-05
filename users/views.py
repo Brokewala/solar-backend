@@ -206,8 +206,15 @@ class RequestResetPasswordView(APIView):
             reset_link = request.build_absolute_uri(
                 reverse('reset_password', kwargs={'uidb64': uidb64, 'token': token})
             )
-            request_id = request.headers.get('X-Request-Id')
-            send_reset_password_email(email, reset_link, request_id)
+            # send email
+            subject = "Réinitialisation de mot de passe"
+            html_message = render_to_string(
+                "password_reset_email.html",
+                { "reset_link": reset_link},
+            )
+            # send
+            send_email_notification(html_message, email, subject)
+
 
         return Response(
             {'message': 'If an account exists, a reset link was sent'},

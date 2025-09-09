@@ -67,7 +67,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         user = authenticate(**credentials)
 
         if user is None:
-            raise serializers.ValidationError("L\’adresse e-mail ou le mot de passe est incorrect.")
+            raise serializers.ValidationError("L’adresse e-mail ou le mot de passe est incorrect.")
         
 
         if isinstance(user, ProfilUser):

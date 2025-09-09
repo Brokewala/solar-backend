@@ -3,6 +3,9 @@ from rest_framework import serializers
 # model
 from .models import Modules, ModulesInfo, ModulesDetail
 from users.serializers import ProfilUserSerializer
+from rest_framework import serializers
+from rest_framework_simplejwt.tokens import RefreshToken
+from users.models import ProfilUser
 
 
 # serializer
@@ -51,3 +54,48 @@ class ModulesDetailSerializer(serializers.ModelSerializer):
             'createdAt': {'read_only': True, 'help_text': 'Date de création'},
             'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}
         }
+
+
+# iot/serializers.py
+
+class IoTModuleTokenSerializer(serializers.Serializer):
+    reference = serializers.CharField()
+
+    def validate(self, attrs):
+        ref = attrs.get("reference")
+
+        module = (
+            Modules.objects.select_related("user")
+            .filter(reference=ref, active=True, user__isnull=False)
+            .first()
+        )
+        if not module:
+            raise serializers.ValidationError("Référence ou secret invalide.")
+
+        user: ProfilUser = module.user
+        # vérifs cohérentes avec ton CustomTokenObtainPairSerializer
+        if not user.status or not user.is_verified:
+            raise serializers.ValidationError("Compte utilisateur désactivé ou non vérifié.")
+
+        refresh = RefreshToken.for_user(user)
+        # Ajoute des claims utiles pour tracer côté API
+        refresh["module_reference"] = module.reference
+        refresh["module_id"] = str(module.id)
+        refresh["kind"] = "iot"
+
+        data = {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
+            },
+            "reference": module.reference,
+        }
+
+        return data

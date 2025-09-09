@@ -57,3 +57,4 @@ class ModulesDetail(models.Model):
     description = models.TextField(max_length=500, null=True, blank=True)
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
+

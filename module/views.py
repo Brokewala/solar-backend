@@ -4,7 +4,8 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework import generics, permissions
 # from rest_framework.permissions import IsAuthenticated
 # from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
@@ -23,7 +24,22 @@ from battery.models import Battery
 # serializer
 from .serializers import ModulesSerializer
 from .serializers import ModulesInfoSerializer
+from .serializers import IoTModuleTokenSerializer
 from .serializers import ModulesDetailSerializer
+
+
+
+class IoTModuleTokenView(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = IoTModuleTokenSerializer
+
+    def post(self, request, *args, **kwargs):
+        ser = self.get_serializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        return Response(ser.validated_data)
+
+class IoTTokenRefreshView(TokenRefreshView):
+    permission_classes = [permissions.AllowAny]
 
 
 # get all module
@@ -871,3 +887,4 @@ class ModulesDetailAPIView(APIView):
         return Response(
             {"message": "module is deleted"}, status=status.HTTP_204_NO_CONTENT
         )
+

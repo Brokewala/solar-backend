@@ -17,4 +17,7 @@ urlpatterns = [
     path("module-info", views.ModulesInfoAPIView.as_view()),
     path("module-info/<str:module_id>", views.ModulesInfoAPIView.as_view()),
     path("module-info/<str:module_id>/module", views.get_one_moduleinfo_by_module),
+    # refresh et token
+     path("token/", views.IoTModuleTokenView.as_view(), name="iot_module_token"),
+    path("token-refresh/", views.IoTTokenRefreshView.as_view(), name="iot_token_refresh"),
 ]

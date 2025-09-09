@@ -216,10 +216,15 @@ class RequestResetPasswordView(APIView):
             send_email_notification(html_message, email, subject)
 
 
-        return Response(
-            {'message': 'If an account exists, a reset link was sent'},
-            status=status.HTTP_202_ACCEPTED,
-        )
+            return Response(
+                {'message': 'Un email de réinitialisation a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception.'},
+                status=status.HTTP_202_ACCEPTED,
+            )
+        else:
+            return Response(
+                {'message': 'Votre compte n\'existe pas. vérifiez votre email'},
+                status=status.HTTP_202_ACCEPTED,
+            )
 
 
 def reset_password(request, uidb64, token):

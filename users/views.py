@@ -47,7 +47,7 @@ def send_email_notification(email_content, email, titre):
 
 
 @swagger_auto_schema(
-    method='get',
+    method='POST',
     operation_description="Teste l'envoi d'email",
     responses={
         200: openapi.Response('Email envoyé avec succès'),

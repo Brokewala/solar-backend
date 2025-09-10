@@ -54,9 +54,9 @@ def send_email_notification(email_content, email, titre):
         500: 'Internal Server Error'
     }
 )
-@api_view(["GET"])
+@api_view(["POST"])
 def teste_email(request):
-    send_email_notification("salut",'lodphin19@gmail.com',"teste salut")
+    send_email_notification("salut test ESP32",'rakotoarisoa.ga@gmail.com',"teste salut . from serveur de lodphin")
     return Response({"message": "Email sent successfully"})
 
 

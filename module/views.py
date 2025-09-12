@@ -201,7 +201,7 @@ def get_one_module_by_user(request, user_id):
         
 
 @swagger_auto_schema(
-    method='get',
+    method='POST',
     operation_description="Récupère un module par l'ID de l'utilisateur pour IOT",
     manual_parameters=[
         openapi.Parameter(

@@ -28,21 +28,10 @@ class ModulesSerializer(serializers.ModelSerializer):
 
 class ModulesSerializerIOT(serializers.ModelSerializer):
     # les composant
-    battery_id = serializers.PrimaryKeyRelatedField(
-        many=False,
-        read_only=True,
-        source="modules_battery"  
-    )
-    panneau_id = serializers.PrimaryKeyRelatedField(
-        many=False,
-        read_only=True,
-        source="modules_panneau"  
-    )
-    prise_id = serializers.PrimaryKeyRelatedField(
-        many=False,
-        read_only=True,
-        source="modules_prise"  
-    )
+    battery_id = serializers.SerializerMethodField()
+    panneau_id = serializers.SerializerMethodField()
+    prise_id = serializers.SerializerMethodField()
+    
     class Meta:
         model = Modules
         fields = "__all__"
@@ -56,6 +45,18 @@ class ModulesSerializerIOT(serializers.ModelSerializer):
             'createdAt': {'read_only': True, 'help_text': 'Date de création'},
             'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}
         }
+    
+    def get_battery_id(self, obj):
+        b = obj.modules_battery.first()
+        return str(b.id) if b else None
+
+    def get_panneau_id(self, obj):
+        p = obj.modules_panneau.first()
+        return str(p.id) if p else None
+
+    def get_prise_id(self, obj):
+        pr = obj.modules_prise.first()
+        return str(pr.id) if pr else None
 
 # ModulesInfo
 class ModulesInfoSerializer(serializers.ModelSerializer):

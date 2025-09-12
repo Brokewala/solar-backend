@@ -218,7 +218,7 @@ def get_one_module_by_user(request, user_id):
         500: 'Internal Server Error'
     }
 )
-@api_view(["GET"])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def get_one_module_by_user_for_IOT(request, user_id):
     try:

@@ -201,7 +201,7 @@ def get_one_module_by_user(request, user_id):
         
 
 @swagger_auto_schema(
-    method='POST',
+    method='GEt',
     operation_description="Récupère un module par l'ID de l'utilisateur pour IOT",
     manual_parameters=[
         openapi.Parameter(
@@ -218,7 +218,7 @@ def get_one_module_by_user(request, user_id):
         500: 'Internal Server Error'
     }
 )
-@api_view(["POST"])
+@api_view(["GEt"])
 @permission_classes([IsAuthenticated])
 def get_one_module_by_user_for_IOT(request, user_id):
     try:

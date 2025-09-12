@@ -119,7 +119,7 @@ class IoTModuleTokenSerializer(serializers.Serializer):
         data = {
             "refresh": str(refresh),
             "access": str(refresh.access_token),
-            "user":{"id":user.id},
+            "user_id":user.id,
         }
 
         return data

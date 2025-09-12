@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework import generics, permissions
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework.decorators import permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -187,7 +187,7 @@ def create_module_all(request):
     }
 )
 @api_view(["GET"])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def get_one_module_by_user(request, user_id):
     try:
         modules = Modules.objects.get(user__id=user_id)
@@ -219,7 +219,7 @@ def get_one_module_by_user(request, user_id):
     }
 )
 @api_view(["GET"])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def get_one_module_by_user_for_IOT(request, user_id):
     try:
         modules = Modules.objects.get(user__id=user_id)

@@ -11,6 +11,38 @@ from users.models import ProfilUser
 # serializer
 class ModulesSerializer(serializers.ModelSerializer):
     user = ProfilUserSerializer(many=False, read_only=True)
+    
+    class Meta:
+        model = Modules
+        fields = "__all__"
+        extra_kwargs = {
+            'id': {'read_only': True, 'help_text': 'Identifiant unique du module'},
+            'user': {'help_text': 'Utilisateur propriétaire du module'},
+            'reference': {'help_text': 'Référence du module'},
+            'identifiant': {'help_text': 'Identifiant unique du module'},
+            'password': {'help_text': 'Mot de passe du module'},
+            'active': {'help_text': 'Indique si le module est actif'},
+            'createdAt': {'read_only': True, 'help_text': 'Date de création'},
+            'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}
+        }
+
+class ModulesSerializerIOT(serializers.ModelSerializer):
+    # les composant
+    battery_id = serializers.PrimaryKeyRelatedField(
+        many=False,
+        read_only=True,
+        source="modules_battery"  
+    )
+    panneau_id = serializers.PrimaryKeyRelatedField(
+        many=False,
+        read_only=True,
+        source="modules_panneau"  
+    )
+    prise_id = serializers.PrimaryKeyRelatedField(
+        many=False,
+        read_only=True,
+        source="modules_prise"  
+    )
     class Meta:
         model = Modules
         fields = "__all__"
@@ -86,15 +118,7 @@ class IoTModuleTokenSerializer(serializers.Serializer):
         data = {
             "refresh": str(refresh),
             "access": str(refresh.access_token),
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "role": user.role,
-                "is_staff": user.is_staff,
-                "is_superuser": user.is_superuser,
-            },
+            "id": user.id,
             "reference": module.reference,
         }
 

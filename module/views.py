@@ -26,6 +26,7 @@ from .serializers import ModulesSerializer
 from .serializers import ModulesInfoSerializer
 from .serializers import IoTModuleTokenSerializer
 from .serializers import ModulesDetailSerializer
+from .serializers import ModulesSerializerIOT
 
 
 
@@ -191,6 +192,38 @@ def get_one_module_by_user(request, user_id):
     try:
         modules = Modules.objects.get(user__id=user_id)
         serializer = ModulesSerializer(modules, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Modules.DoesNotExist:
+        return Response(
+            {"error": "module not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+        
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Récupère un module par l'ID de l'utilisateur pour IOT",
+    manual_parameters=[
+        openapi.Parameter(
+            'user_id',
+            openapi.IN_PATH,
+            description="Identifiant unique de l'utilisateur IOT",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: ModulesSerializerIOT,
+        404: openapi.Response('Module non trouvé'),
+        500: 'Internal Server Error'
+    }
+)
+@api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+def get_one_module_by_user_for_IOT(request, user_id):
+    try:
+        modules = Modules.objects.get(user__id=user_id)
+        serializer = ModulesSerializerIOT(modules, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Modules.DoesNotExist:
         return Response(

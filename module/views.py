@@ -187,7 +187,7 @@ def create_module_all(request):
     }
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def get_one_module_by_user(request, user_id):
     try:
         modules = Modules.objects.get(user__id=user_id)
@@ -219,7 +219,7 @@ def get_one_module_by_user(request, user_id):
     }
 )
 @api_view(["GEt"])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def get_one_module_by_user_for_IOT(request, user_id):
     try:
         modules = Modules.objects.get(user__id=user_id)

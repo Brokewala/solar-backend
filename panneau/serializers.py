@@ -66,14 +66,14 @@ class PanneauPlanningSerializer(serializers.ModelSerializer):
         }
 
 class PanneauRelaiStateSerializer(serializers.ModelSerializer):
-    panneau = PanneauSerializer(many=False, read_only=True)
+    # panneau = PanneauSerializer(many=False, read_only=True)
 
     class Meta:
         model = PanneauRelaiState
         fields = "__all__"
         extra_kwargs = {
             'id': {'read_only': True, 'help_text': 'Identifiant unique de l\'état du relais'},
-            'panneau': {'help_text': 'Panneau associé à cet état'},
+            # 'panneau': {'help_text': 'Panneau associé à cet état'},
             'active': {'help_text': 'Indique si le relais est actif'},
             'state': {'help_text': 'État du relais (low, high)'},
             'couleur': {'help_text': 'Couleur associée à l\'état (red, green)'},

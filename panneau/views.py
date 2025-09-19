@@ -528,7 +528,7 @@ class PanneauRelaiStateAPIViewIOT(APIView):
         serializer = PanneauRelaiStateSerializer(relai_state)
         return Response(serializer.data)
 
-    def put(self, request, panneau_id):
+    def post(self, request, panneau_id):
         relai_state = get_object_or_404(PanneauRelaiState, panneau__id=panneau_id)
         serializer = PanneauRelaiStateSerializer(relai_state, data=request.data, partial=True)
         if serializer.is_valid():

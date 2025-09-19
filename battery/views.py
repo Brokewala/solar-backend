@@ -1,10 +1,10 @@
-from rest_framework import status
+from rest_framework import status,permissions
 # from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework.decorators import permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -770,6 +770,33 @@ class BatteryRelaiStateAPIView(APIView):
             status=status.HTTP_204_NO_CONTENT,
         )
 
+
+class BatteryRelaiStateByBatteryAPIView(APIView):
+    """
+    GET  /battery/<battery_id>/relai-state/  -> retourne l'état du relais de la batterie
+    PUT  /battery/<battery_id>/relai-state/  -> met à jour l'état du relais de la batterie
+    """
+    permission_classes = [permissions.IsAuthenticated]  # retire si endpoint public
+
+    def get_object(self, battery_id: str) -> BatteryRelaiState:
+        # Sécurise : 404 si la batterie n'existe pas
+        get_object_or_404(Battery, id=battery_id)
+        # Récupère l'état du relais lié à cette batterie
+        return get_object_or_404(BatteryRelaiState, battery__id=battery_id)
+
+    def get(self, request, battery_id: str):
+        relai_state = self.get_object(battery_id)
+        serializer = BatteryRelaiStateSerializer(relai_state)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, battery_id: str):
+        relai_state = self.get_object(battery_id)
+        # partial=True pour permettre de ne mettre que certains champs
+        serializer = BatteryRelaiStateSerializer(relai_state, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()  # garde le même relai_state (pas de swap de battery)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # BatteryReference  BatteryReferenceSerializer
 @api_view(["GET"])

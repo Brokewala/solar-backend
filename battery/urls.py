@@ -40,6 +40,8 @@ urlpatterns = [
         "battery-relaistate/<str:battery_id>/switch",
         views.switch_batteryRelaiState_by_battery,
     ),
+    path('relai-state/<str:battery_id>/iot/', views.BatteryRelaiStateByBatteryAPIView.as_view(), name='battery-relai-state'),
+
     # referance
     path("battery-reference", views.BatteryReferenceAPIView.as_view()),
     path(

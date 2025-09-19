@@ -65,14 +65,14 @@ class BatteryPlanningSerializer(serializers.ModelSerializer):
         }
 
 class BatteryRelaiStateSerializer(serializers.ModelSerializer):
-    battery = BatterySerializer(many=False, read_only=True)
+    # battery = BatterySerializer(many=False, read_only=True)
 
     class Meta:
         model = BatteryRelaiState
         fields = "__all__"
         extra_kwargs = {
             'id': {'read_only': True, 'help_text': 'Identifiant unique de l\'état du relais'},
-            'battery': {'help_text': 'Batterie associée à cet état'},
+            # 'battery': {'help_text': 'Batterie associée à cet état'},
             'active': {'help_text': 'Indique si le relais est actif'},
             'state': {'help_text': 'État du relais (low, medium, high)'},
             'couleur': {'help_text': 'Couleur associée à l\'état (red, orange, green)'},

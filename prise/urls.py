@@ -37,6 +37,8 @@ urlpatterns = [
         "prise-relaistate/<str:prise_id>/switch",
         views.switch_PriseRelaiState_by_Prise,
     ),
+    path('relai-state/<str:prise_id>/iot/', views.PriseRelaiStateByPriseAPIView.as_view(), name='prise-relai-state'),
+
     # priseReference
     path("prise-reference", views.PriseReferenceAPIView.as_view()),
     path(

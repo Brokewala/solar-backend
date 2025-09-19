@@ -1,12 +1,12 @@
-from rest_framework import status
+from rest_framework import status,permissions
 
 # from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework.decorators import permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -524,9 +524,38 @@ class PriseRelaiStateAPIView(APIView):
         )
 
 
+
+
+class PriseRelaiStateByPriseAPIView(APIView):
+    """
+    GET  /prise/<prise_id>/relai-state/  -> retourne l'état du relais de la prise
+    PUT  /prise/<prise_id>/relai-state/  -> met à jour l'état du relais de la prise
+    """
+    permission_classes = [permissions.IsAuthenticated]  # retire si public
+
+    def get_object(self, prise_id: str) -> PriseRelaiState:
+        # 404 si la prise n'existe pas
+        prise = get_object_or_404(Prise, id=prise_id)
+        # 404 si l'état n'existe pas (ou créer automatiquement, voir option plus bas)
+        return get_object_or_404(PriseRelaiState, prise=prise)
+
+    def get(self, request, prise_id: str):
+        relai_state = self.get_object(prise_id)
+        serializer = PriseRelaiStateSerializer(relai_state)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, prise_id: str):
+        relai_state = self.get_object(prise_id)
+        serializer = PriseRelaiStateSerializer(relai_state, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()  # garde la même prise; pas de réassignation
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 # PriseReference  PriseReferenceSerializer
 @api_view(["GET"])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def get_one_PriseReference_by_prise(request, prise_id):
     prise_data = PriseReference.objects.filter(prise__id=prise_id)
     serializer = PriseReferenceSerializer(prise_data, many=True)

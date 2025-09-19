@@ -40,6 +40,8 @@ urlpatterns = [
         "panneau-relaistate/<str:panneau_id>/switch",
         views.switch_panneauRelaiState_by_panneau,
     ),
+     path('relai-state/<str:panneau_id>/iot/', views.PanneauRelaiStateAPIViewIOT.as_view(), name='panneau-relai-state'),
+
     # PanneauReference
     path("panneau-reference", views.PanneauReferenceAPIView.as_view()),
     path(

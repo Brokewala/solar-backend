@@ -517,6 +517,27 @@ class PanneauRelaiStateAPIView(APIView):
         )
 
 
+class PanneauRelaiStateAPIViewIOT(APIView):
+    """
+    GET  -> récupérer l'état du relai via panneau_id
+    PUT  -> modifier l'état du relai via panneau_id
+    """
+
+    def get(self, request, panneau_id):
+        relai_state = get_object_or_404(PanneauRelaiState, panneau__id=panneau_id)
+        serializer = PanneauRelaiStateSerializer(relai_state)
+        return Response(serializer.data)
+
+    def put(self, request, panneau_id):
+        relai_state = get_object_or_404(PanneauRelaiState, panneau__id=panneau_id)
+        serializer = PanneauRelaiStateSerializer(relai_state, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+
 # PanneauReference  PanneauReferenceSerializer
 @api_view(["GET"])
 # @permission_classes([IsAuthenticated])

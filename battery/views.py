@@ -789,7 +789,7 @@ class BatteryRelaiStateByBatteryAPIView(APIView):
         serializer = BatteryRelaiStateSerializer(relai_state)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def put(self, request, battery_id: str):
+    def post(self, request, battery_id: str):
         relai_state = self.get_object(battery_id)
         # partial=True pour permettre de ne mettre que certains champs
         serializer = BatteryRelaiStateSerializer(relai_state, data=request.data, partial=True)

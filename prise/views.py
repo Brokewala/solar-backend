@@ -544,7 +544,7 @@ class PriseRelaiStateByPriseAPIView(APIView):
         serializer = PriseRelaiStateSerializer(relai_state)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def put(self, request, prise_id: str):
+    def post(self, request, prise_id: str):
         relai_state = self.get_object(prise_id)
         serializer = PriseRelaiStateSerializer(relai_state, data=request.data, partial=True)
         if serializer.is_valid():

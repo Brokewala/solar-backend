@@ -1117,7 +1117,8 @@ def get_realtime_panneau_data(request, module_id):
     Données optimisées pour affichage graphique dans l'app mobile.
     """
     now = timezone.now()
-    yesterday = now - timedelta(hours=24)
+    # yesterday = now - timedelta(hours=24)
+    yesterday = now 
 
     try:
         # Récupérer les données des dernières 24h

@@ -77,6 +77,8 @@ def  create_notification(request):
         message=message,
     )
     serializer = NotificationSerializer(notif,many=False)
+    # notification to socket
+    send_websocket_notification(user_id, serializer.data)
     return Response(serializer.data, status=status.HTTP_200_OK)
     
     

@@ -61,6 +61,7 @@ def send_websocket_notification(user_id, data_notif):
     )
     
 
+# create notification
 @api_view(["POST"])
 def  create_notification(request):
     user_id = request.data.get("user_id")

@@ -60,6 +60,22 @@ def send_websocket_notification(user_id, data_notif):
         },
     )
     
+
+@api_view(["POST"])
+def  create_notification(request):
+    user_id = request.data.get("user_id")
+    fonction = request.data.get("fonction")
+    message = request.data.get("message")
+
+    notif = Notification.objects.create(
+        user__id=user_id,
+        fonction=fonction,
+        message=message,
+    )
+    serializer = NotificationSerializer(notif,many=False).data
+    return serializer
+    
+    
 @swagger_auto_schema(
     method='put',
     operation_description="Marque une notification comme lue",

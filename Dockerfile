@@ -33,4 +33,5 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 EXPOSE 8000
 
 # Commande pour démarrer le serveur Django
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["sh", "-c", "daphne -b 0.0.0.0 -p ${PORT} solar_backend.asgi:application"]

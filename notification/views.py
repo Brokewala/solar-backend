@@ -67,9 +67,12 @@ def  create_notification(request):
     user_id = request.data.get("user_id")
     fonction = request.data.get("fonction")
     message = request.data.get("message")
+    
+    user = get_object_or_404(ProfilUser, id=user_id)
+
 
     notif = Notification.objects.create(
-        user__id=user_id,
+        user=user,
         fonction=fonction,
         message=message,
     )

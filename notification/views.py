@@ -76,8 +76,8 @@ def  create_notification(request):
         fonction=fonction,
         message=message,
     )
-    serializer = NotificationSerializer(notif,many=False).data
-    return serializer
+    serializer = NotificationSerializer(notif,many=False)
+    return Response(serializer.data, status=status.HTTP_200_OK)
     
     
 @swagger_auto_schema(

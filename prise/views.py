@@ -1080,8 +1080,7 @@ def get_realtime_prise_data(request, module_id):
     """
     
     now = timezone.now()
-    # yesterday = now - timedelta(hours=24)
-    yesterday = now 
+    yesterday = now - timedelta(hours=24)
     
     try:
         # Récupérer les données des dernières 24h

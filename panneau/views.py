@@ -1066,7 +1066,8 @@ def get_realtime_panneau_data(request, module_id):
         # Récupérer les données des dernières 24h
         queryset = PanneauData.objects.filter(
             panneau__module_id=module_id,
-            createdAt__gte=yesterday
+            createdAt__gte=yesterday,
+            createdAt__lte=now
         ).order_by("-createdAt")[:100]  # Limiter à 100 points max
         
         # Formater les données
@@ -1094,7 +1095,7 @@ def get_realtime_panneau_data(request, module_id):
             "component_type": "panneau",
             "module_id": module_id,
             "realtime": True,
-            "data_period": "24h",
+            "data_period": 24,
             "total_records": len(data),
             "last_updated": now.isoformat(),
             "refresh_interval": 30,  # Secondes

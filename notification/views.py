@@ -36,6 +36,7 @@ from panneau.models import PanneauData
 
 # serializer
 from .serializers import NotificationSerializer
+from panneau.serializers import PanneauDataSerializer
 
 def create_notification_serializer(user,name,message):
     notif = Notification.objects.create(
@@ -491,3 +492,19 @@ def notify_panneau_data(sender, instance, created, **kwargs):
     for message in messages:
         data_notif = create_notification_serializer(user, "Panneau", message)
         send_websocket_notification(user.id, data_notif)
+
+
+# envoyer le donne reelle dans 
+@receiver(post_save, sender=PanneauData)
+def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
+    if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
+        return
+
+    # send
+    serializer = PanneauDataSerializer(instance, many=False)
+    
+    panneau = instance.panneau
+    user = panneau.module.user
+    if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer
+        return
+    send_websocket_notification(user.id, serializer.data)

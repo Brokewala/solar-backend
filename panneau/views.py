@@ -1090,7 +1090,7 @@ def get_realtime_panneau_data(request, module_id):
             data.append(formatted_entry)
         
         # Inverser pour avoir l'ordre chronologique
-        data.reverse()
+        # data.reverse()
         
         response_data = {
             "component_type": "panneau",

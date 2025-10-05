@@ -1075,13 +1075,13 @@ def get_realtime_panneau_data(request, module_id):
         data = []
         for entry in queryset:
             created_at = entry.createdAt
-            hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            # hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
             
             formatted_entry = {
                 "timestamp": created_at.isoformat(),
-                "hour_decimal": round(hour_decimal, 3),
-                "hour_label": created_at.strftime("%H:%M:%S"),
-                "date_label": created_at.strftime("%d/%m/%Y"),
+                # "hour_decimal": round(hour_decimal, 3),
+                "hour_label": created_at.strftime("%H:%M"),
+                # "date_label": created_at.strftime("%d/%m/%Y"),
                 "tension": float(entry.tension or 0),
                 "puissance":float(entry.puissance or 0),
                 "courant":  float(entry.courant or 0),

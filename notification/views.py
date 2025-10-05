@@ -438,6 +438,8 @@ def notify_panneau_data(sender, instance, created, **kwargs):
     if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
         return
 
+    print("notificaiton =======1111=================================pannea -----")
+
     panneau = instance.panneau
     user = panneau.module.user
     if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer

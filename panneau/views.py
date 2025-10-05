@@ -1069,7 +1069,7 @@ def get_realtime_panneau_data(request, module_id):
             panneau__module_id=module_id,
             createdAt__gte=today_start,
             createdAt__lte=now
-        ).order_by("createdAt")[:100]  # Limiter à 100 points max
+        ).order_by("createdAt")
         
         # Formater les données
         data = []

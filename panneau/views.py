@@ -1060,13 +1060,14 @@ def get_realtime_panneau_data(request, module_id):
     """
     
     now = timezone.now()
-    yesterday = now - timedelta(hours=24)
-    
+    # yesterday = now - timedelta(hours=24)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
     try:
         # Récupérer les données des dernières 24h
         queryset = PanneauData.objects.filter(
             panneau__module_id=module_id,
-            createdAt__gte=yesterday,
+            createdAt__gte=today_start,
             createdAt__lte=now
         ).order_by("createdAt")[:100]  # Limiter à 100 points max
         

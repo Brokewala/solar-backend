@@ -98,6 +98,12 @@ urlpatterns = [
         views.get_daily_panneau_data,
         name="daily_panneau_data_specific",
     ),
+    # celui qui fonctionne
+    path(
+        "daily-data-filter/<str:module_id>/",
+        views.get_panneau_data_filtered,
+        name="daily_panneau_data_specific",
+    ),
     path(
         "realtime-data/<str:module_id>/",
         views.get_realtime_panneau_data,

@@ -1053,6 +1053,90 @@ def get_daily_panneau_data(request, module_id, week_number=None, day_of_week=Non
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+
+@api_view(["GET"])
+def get_panneau_data_filtered(request, module_id):
+    """
+    API pour récupérer les données journalières d’un panneau solaire.
+    
+    Filtres possibles :
+    - module_id : ID du module (obligatoire)
+    - year : année (optionnel, défaut = année actuelle)
+    - month : mois (optionnel, défaut = mois actuel)
+    - day : jour (optionnel, défaut = jour actuel)
+    """
+
+    try:
+        # Récupération des filtres dans les query params
+        year = request.GET.get("year")
+        month = request.GET.get("month")
+        day = request.GET.get("day")
+        now = timezone.now()
+
+        # Valeurs par défaut (aujourd'hui)
+        year = int(year) if year else now.year
+        month = int(month) if month else now.month
+        day = int(day) if day else now.day
+
+        # Validation de la date
+        try:
+            target_date = datetime(year, month, day, tzinfo=timezone.utc)
+        except ValueError:
+            return Response(
+                {"error": "Date invalide. Vérifiez l'année, le mois et le jour fournis."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        start_of_day = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = target_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        # Récupération des données filtrées
+        panneau_data = PanneauData.objects.filter(
+            panneau__module_id=module_id,
+            createdAt__range=(start_of_day, end_of_day)
+        ).order_by("createdAt")
+
+        # Formatage des données
+        data = []
+        for entry in panneau_data:
+            created_at = entry.createdAt
+            hour_decimal = created_at.hour + (created_at.minute / 60.0)
+
+            data.append({
+                "timestamp": created_at.isoformat(),
+                "hour_label": created_at.strftime("%H:%M"),
+                "hour_decimal": round(hour_decimal, 2),
+                "tension": float(entry.tension or 0),
+                "puissance": float(entry.puissance or 0),
+                "courant": float(entry.courant or 0),
+                "production": float(entry.production or 0),
+            })
+
+        response_data = {
+            "component_type": "panneau",
+            "module_id": module_id,
+            "date": target_date.strftime("%Y-%m-%d"),
+            "year": year,
+            "month": month,
+            "day": day,
+            "total_records": len(data),
+            "data_range": {
+                "start": start_of_day.isoformat(),
+                "end": end_of_day.isoformat(),
+            },
+            "data": data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": f"Erreur lors de la récupération des données panneau : {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+        
+
 @api_view(["GET"])  
 def get_realtime_panneau_data(request, module_id):
     """

@@ -1080,34 +1080,35 @@ def get_realtime_prise_data(request, module_id):
     """
     
     now = timezone.now()
-    yesterday = now - timedelta(hours=24)
-    
+    # yesterday = now - timedelta(hours=24)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
     try:
         # Récupérer les données des dernières 24h
         queryset = PriseData.objects.filter(
             prise__module_id=module_id,
-            createdAt__gte=yesterday
-        ).order_by("-createdAt")[:100]
+            createdAt__gte=today_start
+        ).order_by("-createdAt")
         
         # Formater les données
         data = []
         for entry in queryset:
             created_at = entry.createdAt
-            hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            # hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
             
             formatted_entry = {
                 "timestamp": created_at.isoformat(),
-                "hour_decimal": round(hour_decimal, 3),
-                "hour_label": created_at.strftime("%H:%M:%S"),
-                "date_label": created_at.strftime("%d/%m/%Y"),
-                "tension": float(entry.tension) if entry.tension else 0.0,
-                "puissance": float(entry.puissance) if entry.puissance else 0.0,
-                "courant": float(entry.courant) if entry.courant else 0.0,
-                "consommation": float(entry.consomation) if entry.consomation else 0.0,
+                # "hour_decimal": round(hour_decimal, 3),
+                "hour_label": created_at.strftime("%H:%M"),
+                # "date_label": created_at.strftime("%d/%m/%Y"),
+                "tension": float(entry.tension,0),
+                "puissance": float(entry.puissance,0),
+                "courant": float(entry.courant,0),
+                "consommation": float(entry.consomation,0),
             }
             data.append(formatted_entry)
         
-        data.reverse()
+        # data.reverse()
         
         response_data = {
             "component_type": "prise",

@@ -1068,7 +1068,7 @@ def get_realtime_panneau_data(request, module_id):
             panneau__module_id=module_id,
             createdAt__gte=yesterday,
             createdAt__lte=now
-        ).order_by("-createdAt")[:100]  # Limiter à 100 points max
+        ).order_by("createdAt")[:100]  # Limiter à 100 points max
         
         # Formater les données
         data = []
@@ -1081,10 +1081,10 @@ def get_realtime_panneau_data(request, module_id):
                 "hour_decimal": round(hour_decimal, 3),
                 "hour_label": created_at.strftime("%H:%M:%S"),
                 "date_label": created_at.strftime("%d/%m/%Y"),
-                "tension": float(entry.tension) if entry.tension else 0.0,
-                "puissance": float(entry.puissance) if entry.puissance else 0.0,
-                "courant": float(entry.courant) if entry.courant else 0.0,
-                "production": float(entry.production) if entry.production else 0.0,
+                "tension": float(entry.tension or 0),
+                "puissance":float(entry.puissance or 0),
+                "courant":  float(entry.courant or 0),
+                "production": float(entry.production or 0),
             }
             data.append(formatted_entry)
         

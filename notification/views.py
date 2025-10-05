@@ -483,6 +483,7 @@ def notify_panneau_data(sender, instance, created, **kwargs):
             messages.append(
                 "Attention : Une accumulation importante de poussière, de saleté ou de neige a été détectée sur le panneau solaire. Nettoyez pour optimiser la production."
             )
+    print("notificaiton ========================================pannea -----")
 
     # Envoi des notifications
     for message in messages:

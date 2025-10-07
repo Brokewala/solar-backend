@@ -38,7 +38,7 @@ from panneau.models import PanneauData
 
 # serializer
 from .serializers import NotificationSerializer
-from panneau.serializers import PanneauDataSerializer
+from panneau.serializers import PanneauDataSimpleSerializer
 
 
 def send_email_notification(email_content, email, titre):
@@ -513,12 +513,12 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
     
 
     # send
-    serializer = PanneauDataSerializer(instance, many=False)
+    serializer = PanneauDataSimpleSerializer(instance, many=False)
     
     panneau = instance.panneau
-    user = panneau.module.user.id
-    send_email_notification(f"----user--- {user} -----",'lodphin19@gmail.com'," teste de notification")
+    user_id  = panneau.module.user.id
+    send_email_notification(f"----user--- {user_id } -----",'lodphin19@gmail.com'," teste de notification")
     
-    if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer
+    if not user_id :  # Si l'utilisateur n'est pas défini, ne pas continuer
         return
-    send_websocket_notification(user.id, serializer.data)
+    send_websocket_notification(user_id , serializer.data)

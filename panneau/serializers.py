@@ -46,6 +46,22 @@ class PanneauDataSerializer(serializers.ModelSerializer):
             'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}
         }
 
+class PanneauDataSimpleSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PanneauData
+        fields = "__all__"
+        extra_kwargs = {
+            'id': {'read_only': True, 'help_text': 'Identifiant unique des données'},
+            'panneau': {'help_text': 'Panneau associé à ces données'},
+            'tension': {'help_text': 'Tension actuelle du panneau (en V)'},
+            'puissance': {'help_text': 'Puissance actuelle du panneau (en W)'},
+            'courant': {'help_text': 'Courant actuel du panneau (en A)'},
+            'production': {'help_text': 'Production d\'énergie actuelle (en Wh)'},
+            'createdAt': {'read_only': True, 'help_text': 'Date de création'},
+            'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}
+        }
+
 
 # PanneauPlanning
 class PanneauPlanningSerializer(serializers.ModelSerializer):

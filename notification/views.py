@@ -481,10 +481,11 @@ def notify_panneau_data(sender, instance, created, **kwargs):
             )
 
     # Problèmes de connectivité
-    if instance.updatedAt and (instance.updatedAt - instance.createdAt).seconds > 3600:
-        messages.append(
-            "Attention : Perte de communication avec le panneau solaire. Veuillez vérifier votre système de monitoring."
-        )
+    if instance.updatedAt and instance.createdAt:
+        delta_seconds = (instance.updatedAt - instance.createdAt).total_seconds()
+        if delta_seconds > 3600:
+            messages.append("Perte de communication détectée (>1h) avec le panneau.")
+ 
 
     # Température inhabituelle (si un capteur de température est intégré)
     if hasattr(instance, 'temperature') and instance.temperature:
@@ -505,10 +506,10 @@ def notify_panneau_data(sender, instance, created, **kwargs):
     # Envoi des notifications
     send_email_notification(f"----user--- nomessahge -----",'lodphin19@gmail.com'," teste de notification")
     
-    for message in messages:
-        send_email_notification(f"----user--- {message } -----",'lodphin19@gmail.com'," teste de notification")
+    for msg in messages:
+        send_email_notification(f"----user--- {msg } -----",'lodphin19@gmail.com'," teste de notification")
         
-        data_notif = create_notification_serializer(user_id, "Panneau", message)
+        data_notif = create_notification_serializer(user_id, "Panneau", msg)
         send_email_notification(f"----user--- {data_notif } -----",'lodphin19@gmail.com'," teste de notification")
         send_websocket_notification(user_id, data_notif)
 

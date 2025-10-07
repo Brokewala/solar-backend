@@ -504,14 +504,22 @@ def notify_panneau_data(sender, instance, created, **kwargs):
             )
 
     # Envoi des notifications
-    send_email_notification(f"----user--- nomessahge -----",'lodphin19@gmail.com'," teste de notification")
+    send_email_notification(f"----user--- messages -----",'lodphin19@gmail.com'," teste de notification")
     
     for msg in messages:
         send_email_notification(f"----user--- {msg } -----",'lodphin19@gmail.com'," teste de notification")
         
-        data_notif = create_notification_serializer(user_id, "Panneau", msg)
+        try:
+            data_notif = create_notification_serializer(user_id, "Panneau", msg)
+        except Exception:
+            data_notif = None
+
         send_email_notification(f"----user--- {data_notif } -----",'lodphin19@gmail.com'," teste de notification")
-        send_websocket_notification(user_id, data_notif)
+        if data_notif is not None:
+            try:
+                send_websocket_notification(user_id, data_notif)
+            except Exception:
+                logger.exception("Erreur envoi websocket pour user %s", user_id)
 
 
 

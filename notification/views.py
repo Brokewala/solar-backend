@@ -516,8 +516,8 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
     # send
     serializer = PanneauDataSerializer(instance, many=False)
     
-    panneau = instance.panneau
-    user = panneau.module.user
+    panneau = instance.panneau.id
+    user = panneau.module.user.id
     send_email_notification(f"---- {panneau} ----notify--- {user} -----",'lodphin19@gmail.com'," teste de notification")
     
     if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer

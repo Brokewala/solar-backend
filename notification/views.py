@@ -51,7 +51,7 @@ def send_email_notification(email_content, email, titre):
 
 def create_notification_serializer(user,name,message):
     notif = Notification.objects.create(
-        user__id=user,
+        user_id=user,
         fonction=name,
         message=message,
     )

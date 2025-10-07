@@ -460,7 +460,9 @@ def notify_panneau_data(sender, instance, created, **kwargs):
         return
     
 
-    messages = []
+    messages = [
+        "nouvelle panneau data est ajouter"
+    ]
 
     # Production d'energie anormale
     if instance.production:

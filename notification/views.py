@@ -448,162 +448,68 @@ def notify_prise_data(sender, instance, created, **kwargs):
 
 
 # ==================================================PANNEAU SOLAR =================================
-# @receiver(post_save, sender=PanneauData)
-# def notify_panneau_data(sender, instance, created, **kwargs):
-#     if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
-#         return
-
-#     print("notificaiton =======1111=================================pannea -----")
-
-#     panneau = instance.panneau
-#     user_id = panneau.module.user.id
-#     if not user_id:  # Si l'utilisateur n'est pas défini, ne pas continuer
-#         return
-
-#     messages = []
-
-#     # Production d'energie anormale
-#     if instance.production:
-#         production = float(instance.production)
-#         puissance_nominale = 300  # Exemple: Valeur par défaut pour un panneau de 300W
-#         heures_ensoleillement = 5  # Valeur par défaut pour Madagascar
-#         production_moyenne = (puissance_nominale * heures_ensoleillement) / 1000  # En kWh
-#         seuil_critique = (production_moyenne * 30) / 100
-
-#         if production == 0:
-#             messages.append(
-#                 "Attention : Aucune production solaire détectée en plein jour. Vérifiez votre installation pour une éventuelle panne ou un problème majeur."
-#             )
-#         elif production < seuil_critique:
-#             messages.append(
-#                 "Une baisse de production des panneaux solaires est observée au cours de la journée. Cela peut être dû à un ensoleillement insuffisant ou à l'accumulation de particules de poussière réduisant leur efficacité."
-#             )
-
-#     # Problèmes de connectivité
-#     if instance.updatedAt and (instance.updatedAt - instance.createdAt).seconds > 3600:
-#         messages.append(
-#             "Attention : Perte de communication avec le panneau solaire. Veuillez vérifier votre système de monitoring."
-#         )
-
-#     # Température inhabituelle (si un capteur de température est intégré)
-#     if hasattr(instance, 'temperature') and instance.temperature:
-#         temperature = float(instance.temperature)
-#         if temperature >= 70:
-#             messages.append(
-#                 "Attention : Température inhabituelle détectée sur le panneau solaire, risque de points chauds. Vérifiez rapidement pour éviter tout dommage."
-#             )
-
-#     # Accumulation de poussière ou saleté (si un capteur est intégré)
-#     if hasattr(instance, 'dust_level') and instance.dust_level:
-#         dust_level = float(instance.dust_level)
-#         if dust_level > 70:  # Exemple de seuil
-#             messages.append(
-#                 "Attention : Une accumulation importante de poussière, de saleté ou de neige a été détectée sur le panneau solaire. Nettoyez pour optimiser la production."
-#             )
-
-#     # Envoi des notifications
-#     for message in messages:
-#         send_email_notification(f"----user--- {message } -----",'lodphin19@gmail.com'," teste de notification")
-        
-#         data_notif = create_notification_serializer(user_id, "Panneau", message)
-#         send_email_notification(f"----user--- {data_notif } -----",'lodphin19@gmail.com'," teste de notification")
-#         send_websocket_notification(user_id, data_notif)
-
-
 @receiver(post_save, sender=PanneauData)
 def notify_panneau_data(sender, instance, created, **kwargs):
-    if not created:
+    if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
         return
 
-    logger.info("notify_panneau_data called for PanneauData id=%s", getattr(instance, "id", None))
 
-    panneau = getattr(instance, "panneau", None)
-    module = getattr(panneau, "module", None) if panneau else None
-    user_obj = getattr(module, "user", None) if module else None
-
-    # accepter user_obj or try to get id if only id is stored
-    if not user_obj:
-        logger.warning("notify_panneau_data: pas d'utilisateur trouvé pour panneau id=%s", getattr(panneau, "id", None))
+    panneau = instance.panneau
+    user_id = panneau.module.user.id
+    if not user_id:  # Si l'utilisateur n'est pas défini, ne pas continuer
         return
-
-    user_id = getattr(user_obj, "id", user_obj)  # si user_obj est un id, prend l'id, sinon l'objet.id
+    
+    send_email_notification(f"----user--- notify_panneau_data -----",'lodphin19@gmail.com'," teste de notification")
 
     messages = []
 
-    # Production d'énergie
-    try:
-        if instance.production not in (None, ""):
-            production = float(instance.production)
-            puissance_nominale = 300  # exemple
-            heures_ensoleillement = 5
-            production_moyenne = (puissance_nominale * heures_ensoleillement) / 1000.0
-            seuil_critique = (production_moyenne * 30) / 100.0
+    # Production d'energie anormale
+    if instance.production:
+        production = float(instance.production)
+        puissance_nominale = 300  # Exemple: Valeur par défaut pour un panneau de 300W
+        heures_ensoleillement = 5  # Valeur par défaut pour Madagascar
+        production_moyenne = (puissance_nominale * heures_ensoleillement) / 1000  # En kWh
+        seuil_critique = (production_moyenne * 30) / 100
 
-            if production == 0:
-                messages.append("Attention : Aucune production solaire détectée en plein jour. Vérifiez votre installation.")
-            elif production < seuil_critique:
-                messages.append("Baisse de production observée : possible ensoleillement insuffisant ou saleté sur panneaux.")
-    except Exception:
-        logger.exception("Erreur en calcul production pour PanneauData id=%s", instance.id)
+        if production == 0:
+            messages.append(
+                "Attention : Aucune production solaire détectée en plein jour. Vérifiez votre installation pour une éventuelle panne ou un problème majeur."
+            )
+        elif production < seuil_critique:
+            messages.append(
+                "Une baisse de production des panneaux solaires est observée au cours de la journée. Cela peut être dû à un ensoleillement insuffisant ou à l'accumulation de particules de poussière réduisant leur efficacité."
+            )
 
-    # Perte de communication (ici updatedAt/createdAt)
-    try:
-        if instance.updatedAt and instance.createdAt:
-            delta_seconds = (instance.updatedAt - instance.createdAt).total_seconds()
-            if delta_seconds > 3600:
-                messages.append("Perte de communication détectée (>1h) avec le panneau.")
-    except Exception:
-        logger.exception("Erreur calcul temps pour PanneauData id=%s", instance.id)
+    # Problèmes de connectivité
+    if instance.updatedAt and (instance.updatedAt - instance.createdAt).seconds > 3600:
+        messages.append(
+            "Attention : Perte de communication avec le panneau solaire. Veuillez vérifier votre système de monitoring."
+        )
 
-    # Capteurs optionnels
-    if hasattr(instance, "temperature") and instance.temperature not in (None, ""):
-        try:
-            temperature = float(instance.temperature)
-            if temperature >= 70:
-                messages.append("Température élevée détectée sur le panneau (>70°C).")
-        except Exception:
-            logger.exception("Erreur lecture temperature pour PanneauData id=%s", instance.id)
+    # Température inhabituelle (si un capteur de température est intégré)
+    if hasattr(instance, 'temperature') and instance.temperature:
+        temperature = float(instance.temperature)
+        if temperature >= 70:
+            messages.append(
+                "Attention : Température inhabituelle détectée sur le panneau solaire, risque de points chauds. Vérifiez rapidement pour éviter tout dommage."
+            )
 
-    if hasattr(instance, "dust_level") and instance.dust_level not in (None, ""):
-        try:
-            dust_level = float(instance.dust_level)
-            if dust_level > 70:
-                messages.append("Accumulation importante de poussière détectée (>70).")
-        except Exception:
-            logger.exception("Erreur lecture dust_level pour PanneauData id=%s", instance.id)
+    # Accumulation de poussière ou saleté (si un capteur est intégré)
+    if hasattr(instance, 'dust_level') and instance.dust_level:
+        dust_level = float(instance.dust_level)
+        if dust_level > 70:  # Exemple de seuil
+            messages.append(
+                "Attention : Une accumulation importante de poussière, de saleté ou de neige a été détectée sur le panneau solaire. Nettoyez pour optimiser la production."
+            )
 
-    if not messages:
-        logger.debug("notify_panneau_data: aucun message généré pour PanneauData id=%s", instance.id)
-        return
+    # Envoi des notifications
+    for message in messages:
+        send_email_notification(f"----user--- {message } -----",'lodphin19@gmail.com'," teste de notification")
+        
+        data_notif = create_notification_serializer(user_id, "Panneau", message)
+        send_email_notification(f"----user--- {data_notif } -----",'lodphin19@gmail.com'," teste de notification")
+        send_websocket_notification(user_id, data_notif)
 
-    # pour chaque message : créer notif, envoyer mail + websocket
-    for msg in messages:
-        try:
-            # create notification AFTER DB transaction commit
-            def _create_and_send():
-                try:
-                    data_notif = create_notification_serializer(user_id, "Panneau", msg)
-                except Exception:
-                    logger.exception("Erreur création notification pour user %s", user_id)
-                    data_notif = None
-
-                # send email (best-effort)
-                try:
-                    send_email_notification(subject=f"Notification panneau: {user_id}", to_email=getattr(user_obj, "email", "lodphin19@gmail.com"), body=msg)
-                except Exception:
-                    logger.exception("Erreur envoi email pour user %s", user_id)
-
-                # send websocket (best-effort)
-                if data_notif is not None:
-                    try:
-                        send_websocket_notification(user_id, data_notif)
-                    except Exception:
-                        logger.exception("Erreur envoi websocket pour user %s", user_id)
-
-            transaction.on_commit(_create_and_send)
-
-        except Exception:
-            logger.exception("Erreur dans boucle notifications pour PanneauData id=%s", instance.id)
 
 
 # envoyer le donne reelle dans 

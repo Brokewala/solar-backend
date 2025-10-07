@@ -172,7 +172,7 @@ def delete_notification(request,id_notif):
 def read_all_notification(request,user_id):
     notif_data = Notification.objects.filter(user__id=user_id).order_by("-createdAt")
     for notif in notif_data:
-        notif["read"]=True
+        notif.read = True
         notif.save()
     serializer = NotificationSerializer(notif_data, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -239,6 +239,8 @@ def delete_all_by_user_notification(request,user_id):
         {"message": f"Suppression réussie. {deleted_count} notification(s) supprimée(s)."},
         status=status.HTTP_200_OK,
     )
+
+
 # ===============================================BATTERY =================================
 # Courant
 @receiver(post_save, sender=BatteryData)

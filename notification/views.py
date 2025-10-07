@@ -511,7 +511,6 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
     if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
         return
     
-    send_email_notification("salut test ESP32",'lodphin19@gmail.com',"notify_panneau_send_reel_data de lodphin")
 
     # send
     serializer = PanneauDataSerializer(instance, many=False)
@@ -519,6 +518,7 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
     panneau = instance.panneau
     user = panneau.module.user.id
     send_email_notification(f"---- {panneau} ----notify--- {user} -----",'lodphin19@gmail.com'," teste de notification")
+    send_email_notification(serializer.data,'lodphin19@gmail.com',"notify_panneau_send_reel_data de lodphin")
     
     if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer
         return

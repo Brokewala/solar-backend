@@ -518,7 +518,7 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
     
     panneau = instance.panneau
     user = panneau.module.user
-    send_email_notification("salut test ESP32",'lodphin19@gmail.com',f" {panneau} notify {user}")
+    send_email_notification(f"{panneau} notify {user}",'lodphin19@gmail.com'," teste de notification")
     
     if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer
         return

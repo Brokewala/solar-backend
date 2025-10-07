@@ -1102,10 +1102,10 @@ def get_realtime_prise_data(request, module_id):
                 # "hour_decimal": round(hour_decimal, 3),
                 "hour_label": created_at.strftime("%H:%M"),
                 # "date_label": created_at.strftime("%d/%m/%Y"),
-                "tension": float(entry.tension,0),
-                "puissance": float(entry.puissance,0),
-                "courant": float(entry.courant,0),
-                "consommation": float(entry.consomation,0),
+                "tension": float(entry.tension or 0),
+                "puissance": float(entry.puissance or 0),
+                "courant": float(entry.courant or 0),
+                "consommation": float(entry.consomation or 0),
             }
             data.append(formatted_entry)
         

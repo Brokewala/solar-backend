@@ -9,6 +9,7 @@ from rest_framework.decorators import api_view
 # from rest_framework.decorators import permission_classes
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.utils import timezone
 
 # django
 from django.shortcuts import get_object_or_404
@@ -460,9 +461,7 @@ def notify_panneau_data(sender, instance, created, **kwargs):
         return
     
 
-    messages = [
-        "nouvelle panneau data est ajouter"
-    ]
+    messages = []
 
     # Production d'energie anormale
     if instance.production:
@@ -504,18 +503,13 @@ def notify_panneau_data(sender, instance, created, **kwargs):
                 "Attention : Une accumulation importante de poussière, de saleté ou de neige a été détectée sur le panneau solaire. Nettoyez pour optimiser la production."
             )
 
-    # Envoi des notifications
-    send_email_notification(f"----user--- {messages} -----",'lodphin19@gmail.com'," teste de notification")
-    
-    for msg in messages:
-        send_email_notification(f"----user--- {msg } -----",'lodphin19@gmail.com'," teste de notification")
-        
+    # Envoi des notifications    
+    for msg in messages:        
         try:
             data_notif = create_notification_serializer(user_id, "Panneau", msg)
         except Exception:
             data_notif = None
 
-        send_email_notification(f"----user--- {data_notif } -----",'lodphin19@gmail.com'," teste de notification")
         if data_notif is not None:
             try:
                 send_websocket_notification(user_id, data_notif)
@@ -531,13 +525,21 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
         return
     
 
-    # send
-    serializer = PanneauDataSimpleSerializer(instance, many=False)
-    
+    # send    
     panneau = instance.panneau
     user_id  = panneau.module.user.id
-    # send_email_notification(f"----user--- {user_id } -----",'lodphin19@gmail.com'," teste de notification")
+
+     # Construire formatted_entry (même format que votre API)
+    created_at = getattr(instance, "createdAt", timezone.now())
+    formatted_entry = {
+        "timestamp": created_at.isoformat(),
+        "hour_label": created_at.strftime("%H:%M"),
+        "tension": float(instance.tension or 0),
+        "puissance": float(instance.puissance or 0),
+        "courant": float(instance.courant or 0),
+        "production": float(instance.production or 0),
+    }
     
     if not user_id :  # Si l'utilisateur n'est pas défini, ne pas continuer
         return
-    send_websocket_notification(user_id , serializer.data)
+    send_websocket_notification(user_id , formatted_entry)

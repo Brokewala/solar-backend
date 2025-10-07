@@ -453,7 +453,7 @@ def notify_panneau_data(sender, instance, created, **kwargs):
     print("notificaiton =======1111=================================pannea -----")
 
     panneau = instance.panneau
-    user_id = panneau.module.user
+    user_id = panneau.module.user.id
     if not user_id:  # Si l'utilisateur n'est pas défini, ne pas continuer
         return
 

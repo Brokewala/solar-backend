@@ -15,6 +15,8 @@ from django.dispatch import receiver
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from datetime import datetime, timedelta
+from solar_backend.utils import Util
+
 # Notif
 from .models import Notification
 from users.models import ProfilUser
@@ -37,6 +39,15 @@ from panneau.models import PanneauData
 # serializer
 from .serializers import NotificationSerializer
 from panneau.serializers import PanneauDataSerializer
+
+
+def send_email_notification(email_content, email, titre):
+    content = {
+        "email_body": email_content,
+        "to_email": email,
+        "email_subject": titre,
+    }
+    Util.send_email(content)
 
 def create_notification_serializer(user,name,message):
     notif = Notification.objects.create(
@@ -499,6 +510,8 @@ def notify_panneau_data(sender, instance, created, **kwargs):
 def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
     if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
         return
+    
+    send_email_notification("salut test ESP32",'lodphin19@gmail.com',"notify_panneau_send_reel_data de lodphin")
 
     # send
     serializer = PanneauDataSerializer(instance, many=False)

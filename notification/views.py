@@ -459,7 +459,6 @@ def notify_panneau_data(sender, instance, created, **kwargs):
     if not user_id:  # Si l'utilisateur n'est pas défini, ne pas continuer
         return
     
-    send_email_notification(f"----user--- notify_panneau_data -----",'lodphin19@gmail.com'," teste de notification")
 
     messages = []
 
@@ -504,7 +503,7 @@ def notify_panneau_data(sender, instance, created, **kwargs):
             )
 
     # Envoi des notifications
-    send_email_notification(f"----user--- messages -----",'lodphin19@gmail.com'," teste de notification")
+    send_email_notification(f"----user--- {messages} -----",'lodphin19@gmail.com'," teste de notification")
     
     for msg in messages:
         send_email_notification(f"----user--- {msg } -----",'lodphin19@gmail.com'," teste de notification")

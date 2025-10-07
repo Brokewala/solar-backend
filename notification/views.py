@@ -18,7 +18,6 @@ from django.dispatch import receiver
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from datetime import datetime, timedelta
-from solar_backend.utils import Util
 
 # Notif
 from .models import Notification
@@ -45,13 +44,7 @@ from panneau.serializers import PanneauDataSimpleSerializer
 
 logger = logging.getLogger(__name__)
 
-def send_email_notification(email_content, email, titre):
-    content = {
-        "email_body": email_content,
-        "to_email": email,
-        "email_subject": titre,
-    }
-    Util.send_email(content)
+
 
 def create_notification_serializer(user_id,name,message):
     notif = Notification.objects.create(
@@ -399,6 +392,31 @@ def notify_new_BatteryData(sender, instance, created, **kwargs):
         send_websocket_notification(user_id, data_notif)
 
 
+@receiver(post_save, sender=BatteryData)
+def notify_battery_send_reel_data(sender, instance, created, **kwargs):
+    if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
+        return
+
+    # send    
+    user_id = instance.battery.module.user.id
+
+     # Construire formatted_entry (même format que votre API)
+    created_at = getattr(instance, "createdAt", timezone.now())
+    formatted_entry = {
+        "timestamp": created_at.isoformat(),
+        "hour_label": created_at.strftime("%H:%M"),
+        "tension": float(instance.tension or 0),
+        "puissance": float(instance.puissance or 0),
+        "courant": float(instance.courant or 0),
+        "energy": float(instance.energy or 0),
+        "pourcentage": float(instance.pourcentage or 0),
+    }
+    
+    if not user_id :  # Si l'utilisateur n'est pas défini, ne pas continuer
+        return
+    send_websocket_notification(user_id , formatted_entry)
+
+
 # ===================================================PRISE =================================
 
 @receiver(post_save, sender=PriseData)
@@ -446,6 +464,32 @@ def notify_prise_data(sender, instance, created, **kwargs):
     for message in messages:
         data_notif = create_notification_serializer(user_id, "Prise", message)
         send_websocket_notification(user_id, data_notif)
+
+
+
+# envoyer le donne reelle dans 
+@receiver(post_save, sender=PriseData)
+def notify_prise_send_reel_data(sender, instance, created, **kwargs):
+    if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
+        return
+
+    # send    
+    user_id = instance.prise.module.user.id
+
+     # Construire formatted_entry (même format que votre API)
+    created_at = getattr(instance, "createdAt", timezone.now())
+    formatted_entry = {
+        "timestamp": created_at.isoformat(),
+        "hour_label": created_at.strftime("%H:%M"),
+        "tension": float(instance.tension or 0),
+        "puissance": float(instance.puissance or 0),
+        "courant": float(instance.courant or 0),
+        "consommation": float(instance.consomation or 0),
+    }
+    
+    if not user_id :  # Si l'utilisateur n'est pas défini, ne pas continuer
+        return
+    send_websocket_notification(user_id , formatted_entry)
 
 
 # ==================================================PANNEAU SOLAR =================================
@@ -515,8 +559,6 @@ def notify_panneau_data(sender, instance, created, **kwargs):
                 send_websocket_notification(user_id, data_notif)
             except Exception:
                 logger.exception("Erreur envoi websocket pour user %s", user_id)
-
-
 
 # envoyer le donne reelle dans 
 @receiver(post_save, sender=PanneauData)

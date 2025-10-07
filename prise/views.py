@@ -1087,7 +1087,8 @@ def get_realtime_prise_data(request, module_id):
         # Récupérer les données des dernières 24h
         queryset = PriseData.objects.filter(
             prise__module_id=module_id,
-            createdAt__gte=today_start
+            createdAt__gte=today_start,
+            createdAt__lte=now
         ).order_by("-createdAt")
         
         # Formater les données

@@ -51,7 +51,7 @@ def send_email_notification(email_content, email, titre):
 
 def create_notification_serializer(user,name,message):
     notif = Notification.objects.create(
-        user=user,
+        user__id=user,
         fonction=name,
         message=message,
     )
@@ -252,7 +252,7 @@ def notify_courant_status(sender, instance, created, **kwargs):
     if not created:
         return
 
-    user = instance.battery.module.user
+    user_id = instance.battery.module.user.id
     courant = float(instance.courant or 0)
     message = None
 
@@ -262,8 +262,8 @@ def notify_courant_status(sender, instance, created, **kwargs):
         message = "Déchargement de la batterie."
 
     if message:
-        data_notif = create_notification_serializer(user,"Courant", message)
-        send_websocket_notification(user.id, data_notif)
+        data_notif = create_notification_serializer(user_id,"Courant", message)
+        send_websocket_notification(user_id, data_notif)
 
 # Puissance
 @receiver(post_save, sender=BatteryData)
@@ -274,7 +274,7 @@ def notify_puissance_status(sender, instance, created, **kwargs):
     if not created:
         return
 
-    user = instance.battery.module.user
+    user_id = instance.battery.module.user.id
     puissance = float(instance.puissance or 0)
     capacity = float(instance.battery.puissance or 0)
     message = None
@@ -296,8 +296,8 @@ def notify_puissance_status(sender, instance, created, **kwargs):
                 message = "Pourquoi ne pas utiliser votre batterie ? Nous sommes là pour vous aider à mieux le gérer."
 
     if message:
-        data_notif = create_notification_serializer(user,"Puissance", message)
-        send_websocket_notification(user.id, data_notif)
+        data_notif = create_notification_serializer(user_id,"Puissance", message)
+        send_websocket_notification(user_id, data_notif)
 
 # Consommation / Capacité
 @receiver(post_save, sender=BatteryData)
@@ -308,7 +308,7 @@ def notify_consumption_status(sender, instance, created, **kwargs):
     if not created:
         return
 
-    user = instance.battery.module.user
+    user_id = instance.battery.module.user.id
     capacity = float(instance.battery.puissance or 0)
     consumption = float(instance.energy or 0)  # Exemple, ajustez selon vos champs
     message = None
@@ -329,8 +329,8 @@ def notify_consumption_status(sender, instance, created, **kwargs):
         message = f"Aujourd'hui, vous avez consommé un total de {consumption} Ah."
 
     if message:
-        data_notif = create_notification_serializer(user,"Consommation", message)
-        send_websocket_notification(user.id, data_notif)
+        data_notif = create_notification_serializer(user_id,"Consommation", message)
+        send_websocket_notification(user_id, data_notif)
 
 # notification for new battery data
 @receiver(post_save, sender=BatteryData)
@@ -341,7 +341,7 @@ def notify_new_BatteryData(sender, instance, created, **kwargs):
 
     battery = instance.battery
     module = battery.module
-    user = module.user
+    user_id = module.user.id
     # notif
     data_notif = None
     
@@ -391,8 +391,8 @@ def notify_new_BatteryData(sender, instance, created, **kwargs):
             
  # Si un message est défini, envoyer la notification
     if message:
-        data_notif = create_notification_serializer(user, "Tension", message)
-        send_websocket_notification(user.id, data_notif)
+        data_notif = create_notification_serializer(user_id, "Tension", message)
+        send_websocket_notification(user_id, data_notif)
 
 
 # ===================================================PRISE =================================
@@ -402,8 +402,8 @@ def notify_prise_data(sender, instance, created, **kwargs):
     if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
         return
 
-    user = instance.prise.module.user
-    if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer
+    user_id = instance.prise.module.user.id
+    if not user_id:  # Si l'utilisateur n'est pas défini, ne pas continuer
         return
 
     messages = []
@@ -440,8 +440,8 @@ def notify_prise_data(sender, instance, created, **kwargs):
 
     # Ajout des notifications au système
     for message in messages:
-        data_notif = create_notification_serializer(user, "Prise", message)
-        send_websocket_notification(user.id, data_notif)
+        data_notif = create_notification_serializer(user_id, "Prise", message)
+        send_websocket_notification(user_id, data_notif)
 
 
 # ==================================================PANNEAU SOLAR =================================
@@ -453,8 +453,8 @@ def notify_panneau_data(sender, instance, created, **kwargs):
     print("notificaiton =======1111=================================pannea -----")
 
     panneau = instance.panneau
-    user = panneau.module.user
-    if not user:  # Si l'utilisateur n'est pas défini, ne pas continuer
+    user_id = panneau.module.user
+    if not user_id:  # Si l'utilisateur n'est pas défini, ne pas continuer
         return
 
     messages = []
@@ -501,8 +501,8 @@ def notify_panneau_data(sender, instance, created, **kwargs):
 
     # Envoi des notifications
     for message in messages:
-        data_notif = create_notification_serializer(user, "Panneau", message)
-        send_websocket_notification(user.id, data_notif)
+        data_notif = create_notification_serializer(user_id, "Panneau", message)
+        send_websocket_notification(user_id, data_notif)
 
 
 # envoyer le donne reelle dans 
@@ -517,7 +517,7 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
     
     panneau = instance.panneau
     user_id  = panneau.module.user.id
-    send_email_notification(f"----user--- {user_id } -----",'lodphin19@gmail.com'," teste de notification")
+    # send_email_notification(f"----user--- {user_id } -----",'lodphin19@gmail.com'," teste de notification")
     
     if not user_id :  # Si l'utilisateur n'est pas défini, ne pas continuer
         return

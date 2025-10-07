@@ -501,7 +501,10 @@ def notify_panneau_data(sender, instance, created, **kwargs):
 
     # Envoi des notifications
     for message in messages:
+        send_email_notification(f"----user--- {message } -----",'lodphin19@gmail.com'," teste de notification")
+        
         data_notif = create_notification_serializer(user_id, "Panneau", message)
+        send_email_notification(f"----user--- {data_notif } -----",'lodphin19@gmail.com'," teste de notification")
         send_websocket_notification(user_id, data_notif)
 
 

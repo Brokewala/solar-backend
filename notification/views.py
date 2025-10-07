@@ -503,6 +503,8 @@ def notify_panneau_data(sender, instance, created, **kwargs):
             )
 
     # Envoi des notifications
+    send_email_notification(f"----user--- nomessahge -----",'lodphin19@gmail.com'," teste de notification")
+    
     for message in messages:
         send_email_notification(f"----user--- {message } -----",'lodphin19@gmail.com'," teste de notification")
         

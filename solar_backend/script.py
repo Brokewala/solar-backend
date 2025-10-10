@@ -2,7 +2,6 @@
 import os
 import sys
 import django
-from datetime import datetime
 
 # Setup Django
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -14,6 +13,7 @@ from module.models import Modules
 from battery.models import Battery, BatteryData
 from panneau.models import Panneau, PanneauData
 from prise.models import Prise, PriseData
+from solar_backend.timezone_utils import local_now
 
 def add_and_check_daily_data():
     print("🧪 Test ajout et récupération des données journalières...")
@@ -38,7 +38,7 @@ def add_and_check_daily_data():
             puissance=100,
             courant=8.0,
             pourcentage=80,
-            createdAt=datetime.now()
+            createdAt=local_now()
         )
         data = BatteryData.objects.filter(battery=battery)
         print(f"✅ Batterie: {data.count()} données journalières")
@@ -54,7 +54,7 @@ def add_and_check_daily_data():
             tension=18.0,
             puissance=120,
             courant=6.7,
-            createdAt=datetime.now()
+            createdAt=local_now()
         )
         data = PanneauData.objects.filter(panneau=panneau)
         print(f"✅ Panneau: {data.count()} données journalières")
@@ -70,7 +70,7 @@ def add_and_check_daily_data():
             tension=220.0,
             puissance=60,
             courant=0.3,
-            createdAt=datetime.now()
+            createdAt=local_now()
         )
         data = PriseData.objects.filter(prise=prise)
         print(f"✅ Prise: {data.count()} données journalières")

@@ -36,6 +36,7 @@ from .models import BatteryPlanning
 from .models import BatteryRelaiState
 from .models import BatteryReference
 from module.models import Modules
+from prise.models import PriseData
 
 # serailizer
 from .serializers import BatterySerializer
@@ -1611,7 +1612,6 @@ def get_monthly_production_summary(request, module_id):
         )
 
         # Récupérer les données de consommation des prises
-        from prise.models import PriseData
         prise_consumption = PriseData.objects.filter(
             prise__module=module,
             createdAt__year=current_year,

@@ -17,8 +17,7 @@ from drf_yasg import openapi
 from users.utils import _calculate_target_date,_get_french_day_name
 
 # django
-from datetime import timedelta
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.db.models import Sum, F, Avg
 from django.db.models.functions import Coalesce
 from django.db.models.functions import ExtractYear
@@ -28,6 +27,12 @@ from django.db.models.functions import ExtractMonth
 from django.db.models.functions import Cast
 from django.db.models.functions import ExtractWeekDay, ExtractWeek
 from calendar import monthrange
+from solar_backend.timezone_utils import (
+    local_day_bounds,
+    local_month_bounds,
+    local_now,
+    local_today,
+)
 
 # models
 from .models import Battery
@@ -918,7 +923,7 @@ def get_duree_utilisation_batterie_annuelle_by_id_module(request, module_id):
         module = Modules.objects.get(id=module_id)
 
         # Récupérer l'année en cours
-        current_year = datetime.now().year
+        current_year = local_today().year
 
         # Récupérer les BatteryPlanning associés au module pour l'année en cours
         plannings = BatteryPlanning.objects.filter(
@@ -959,7 +964,7 @@ def yearly_battery_utilisation(request, module_id):
         module = get_object_or_404(Modules, id=module_id)
         battery = get_object_or_404(Battery, module=module)
         # Vérifier si des données existent pour la batterie spécifiée
-        current_year = datetime.now().year
+        current_year = local_today().year
 
         # Récupérer et regrouper les données par mois
         monthly_data = (
@@ -1040,9 +1045,9 @@ def liste_batterie_data_by_date_and_id_module(request, module_id,date):
         # Vérification de l'existence du module
         module = Modules.objects.get(id=module_id)
 
-        # Conversion des dates en objets datetime
-        start_date_obj = datetime.strptime(date, "%Y-%m-%d")
-        # end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+        # Conversion de la date et création de la plage locale
+        target_date = datetime.strptime(date, "%Y-%m-%d").date()
+        start_of_day, end_of_day = local_day_bounds(target_date)
 
         # Récupérer les batterys associées au module
         batterys = module.modules_battery.all()
@@ -1050,7 +1055,7 @@ def liste_batterie_data_by_date_and_id_module(request, module_id,date):
         # Filtrer les BatteryData par batterys et plage de dates
         battery_data = BatteryData.objects.filter(
             battery__in=batterys,
-            createdAt__range=(start_date_obj)
+            createdAt__range=(start_of_day, end_of_day)
         )
 
         # Serializer les données
@@ -1074,14 +1079,16 @@ def liste_batterie_data_by_date_and_id_module(request, module_id,date):
 @api_view(["GET"])
 def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id):
 
-    today = datetime.today()
+    today = local_today()
     current_year = today.year
     current_month = today.month
 
     # Déterminer les premiers et derniers jours du mois
     _, last_day_of_month = monthrange(current_year, current_month)
-    start_of_month = datetime(current_year, current_month, 1)
-    end_of_month = datetime(current_year, current_month, last_day_of_month)
+    start_of_month_date = today.replace(day=1)
+    end_of_month_date = start_of_month_date.replace(day=last_day_of_month)
+    start_of_month, _ = local_day_bounds(start_of_month_date)
+    _, end_of_month = local_day_bounds(end_of_month_date)
 
     # Récupérer les données agrégées par semaine
     #Sum(Cast("energy", FloatField()))
@@ -1098,21 +1105,21 @@ def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id):
     )
 
     # Générer les labels pour chaque semaine du mois
-    start_of_week = start_of_month
+    start_of_week_date = start_of_month_date
     weekly_labels = []
-    while start_of_week <= end_of_month:
-        end_of_week = min(start_of_week + timedelta(days=6), end_of_month)
+    while start_of_week_date <= end_of_month_date:
+        end_of_week_date = min(start_of_week_date + timedelta(days=6), end_of_month_date)
         weekly_labels.append(
-            f"Semaine du {start_of_week.strftime('%d %b')} au {end_of_week.strftime('%d %b')}"
+            f"Semaine du {start_of_week_date.strftime('%d %b')} au {end_of_week_date.strftime('%d %b')}"
         )
-        start_of_week += timedelta(days=7)
+        start_of_week_date += timedelta(days=7)
 
     # Mapper les données agrégées par semaine
     consumption_data = [0] * len(weekly_labels)
 
     for entry in data:
         week_number = entry["week"]
-        week_index = week_number - start_of_month.isocalendar()[1]
+        week_index = week_number - start_of_month_date.isocalendar()[1]
         if 0 <= week_index < len(consumption_data):
             consumption_data[week_index] = entry["total_consumption"]
 
@@ -1123,9 +1130,11 @@ def get_battery_consumption_by_week(request,module_id):
     """
     Retrieve battery consumption for each day of the current week, aggregated by day.
     """
-    today = datetime.today()
-    start_of_week = today - timedelta(days=today.weekday())  # Lundi de cette semaine
-    end_of_week = start_of_week + timedelta(days=6)  # Dimanche de cette semaine
+    today = local_today()
+    start_of_week_date = today - timedelta(days=today.weekday())  # Lundi de cette semaine
+    end_of_week_date = start_of_week_date + timedelta(days=6)  # Dimanche de cette semaine
+    start_of_week, _ = local_day_bounds(start_of_week_date)
+    _, end_of_week = local_day_bounds(end_of_week_date)
 
     # Récupérer les données et extraire le jour de la semaine
     # Cast("energy", FloatField())
@@ -1173,9 +1182,9 @@ def get_weekly_battery_data_for_month(request, module_id, year, month):
         return Response({"error": "Month must be between 1 and 12."}, status=400)
 
     # Déterminer les premiers et derniers jours du mois
-    _, last_day_of_month = monthrange(year, month)
-    start_of_month = datetime(year, month, 1)
-    end_of_month = datetime(year, month, last_day_of_month, 23, 59, 59)
+    start_of_month, end_of_month = local_month_bounds(year, month)
+    start_of_month_date = start_of_month.date()
+    end_of_month_date = end_of_month.date()
 
     # Vérifier les dates de la plage
     print(f"Plage de dates : {start_of_month} à {end_of_month}")
@@ -1225,8 +1234,8 @@ def get_weekly_battery_data_for_month(request, module_id, year, month):
         })
 
     # Ajouter les semaines sans données
-    current_date = start_of_month
-    while current_date <= end_of_month:
+    current_date = start_of_month_date
+    while current_date <= end_of_month_date:
         week_number = current_date.isocalendar()[1]  # Récupérer la semaine ISO
         if week_number not in weekly_data:
             response_data.append({
@@ -1369,25 +1378,25 @@ def get_daily_battery_data_for_week(request, module_id, week_number, day_of_week
         )
 
     # Calculer la date du premier jour de l'année
-    first_day_of_year = datetime(datetime.today().year, 1, 1)
+    current_year = local_today().year
+    first_day_of_year = datetime(current_year, 1, 1).date()
 
     # Ajuster pour commencer la semaine un lundi si ce n'est pas le cas
     if first_day_of_year.weekday() != 0:  # 0 = lundi
         first_day_of_year -= timedelta(days=first_day_of_year.weekday())
 
     # Calculer la date du début de la semaine demandée
-    start_of_week = first_day_of_year + timedelta(weeks=week_number - 1)
+    start_of_week_date = first_day_of_year + timedelta(weeks=week_number - 1)
 
     # Trouver l'index du jour spécifié
     days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     day_of_week_index = days_of_week.index(day_of_week)
 
     # Calculer la date cible
-    target_day = start_of_week + timedelta(days=day_of_week_index)
+    target_day = start_of_week_date + timedelta(days=day_of_week_index)
 
     # Plage de temps pour inclure toutes les heures de la journée cible
-    start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
-    end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
+    start_of_day, end_of_day = local_day_bounds(target_day)
 
     # Récupérer toutes les données réelles de batterie pour cette journée
     battery_data = BatteryData.objects.filter(
@@ -1466,25 +1475,25 @@ def get_detailed_battery_data_for_week(request, module_id, week_number, day_of_w
         )
 
     # Calculer la date du premier jour de l'année
-    first_day_of_year = datetime(datetime.today().year, 1, 1)
+    current_year = local_today().year
+    first_day_of_year = datetime(current_year, 1, 1).date()
 
     # Ajuster pour commencer la semaine un lundi si ce n'est pas le cas
     if first_day_of_year.weekday() != 0:  # 0 = lundi
         first_day_of_year -= timedelta(days=first_day_of_year.weekday())
 
     # Calculer la date du début de la semaine demandée
-    start_of_week = first_day_of_year + timedelta(weeks=week_number - 1)
+    start_of_week_date = first_day_of_year + timedelta(weeks=week_number - 1)
 
     # Trouver l'index du jour spécifié
     days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     day_of_week_index = days_of_week.index(day_of_week)
 
     # Calculer la date cible
-    target_day = start_of_week + timedelta(days=day_of_week_index)
+    target_day = start_of_week_date + timedelta(days=day_of_week_index)
 
     # Plage de temps pour inclure toutes les heures de la journée cible
-    start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
-    end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
+    start_of_day, end_of_day = local_day_bounds(target_day)
 
     # Récupérer toutes les données de batterie pour cette journée
     battery_data = BatteryData.objects.filter(
@@ -1598,8 +1607,9 @@ def get_monthly_production_summary(request, module_id):
         # Vérifier si le module existe
         module = get_object_or_404(Modules, id=module_id)
 
-        current_year = datetime.now().year
-        current_month = datetime.now().month
+        today = local_today()
+        current_year = today.year
+        current_month = today.month
 
         # Récupérer les données de production des panneaux
         from panneau.models import PanneauData
@@ -1747,8 +1757,7 @@ def get_daily_battery_data(request, module_id, week_number=None, day_of_week=Non
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-        end_of_day = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+        start_of_day, end_of_day = local_day_bounds(target_date)
         
         # Récupérer les données battery
         battery_data = BatteryData.objects.filter(
@@ -1784,7 +1793,7 @@ def get_daily_battery_data(request, module_id, week_number=None, day_of_week=Non
             "day_name": _get_french_day_name(target_date.strftime("%A")),
             "week_number": target_date.isocalendar()[1],
             "total_records": len(result),
-            "last_updated": timezone.now().isoformat(),
+            "last_updated": local_now().isoformat(),
             "data_range": {
                 "start": start_of_day.isoformat(),
                 "end": end_of_day.isoformat()
@@ -1806,8 +1815,8 @@ def get_realtime_battery_data(request, module_id):
     API pour récupérer les données battery en temps réel (dernières 24h).
     """
     
-    now = timezone.now()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    now = local_now()
+    today_start, _ = local_day_bounds(now)
     
     try:
         # Récupérer les données des dernières 24h
@@ -1864,9 +1873,8 @@ def get_battery_statistics(request, module_id):
     """
     
     try:
-        today = timezone.now().date()
-        start_of_day = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
-        end_of_day = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
+        today = local_today()
+        start_of_day, end_of_day = local_day_bounds(today)
         
         # Récupérer les données du jour
         battery_data = BatteryData.objects.filter(
@@ -1905,7 +1913,7 @@ def get_battery_statistics(request, module_id):
             "date": today.strftime("%Y-%m-%d"),
             "total_records": len(battery_data),
             "statistics": statistics,
-            "last_updated": timezone.now().isoformat()
+            "last_updated": local_now().isoformat()
         }
         
         return Response(response_data, status=status.HTTP_200_OK)

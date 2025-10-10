@@ -17,7 +17,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 # Notif
 from .models import Notification
@@ -41,6 +41,7 @@ from panneau.models import PanneauData
 # serializer
 from .serializers import NotificationSerializer
 from panneau.serializers import PanneauDataSimpleSerializer
+from solar_backend.timezone_utils import local_now
 
 logger = logging.getLogger(__name__)
 
@@ -290,7 +291,7 @@ def notify_puissance_status(sender, instance, created, **kwargs):
             )
         elif puissance == 0:
             # Condition pour une puissance égale à 0 pendant 1h30
-            time_since_last_change = datetime.now() - instance.createdAt
+            time_since_last_change = timezone.now() - instance.createdAt
             if time_since_last_change >= timedelta(hours=1.5):
                 message = "Pourquoi ne pas utiliser votre batterie ? Nous sommes là pour vous aider à mieux le gérer."
 
@@ -324,7 +325,8 @@ def notify_consumption_status(sender, instance, created, **kwargs):
         )
 
     # Notification quotidienne (fin de journée)
-    if datetime.now().hour == 23 and datetime.now().minute == 59:
+    current_local_time = local_now()
+    if current_local_time.hour == 23 and current_local_time.minute == 59:
         message = f"Aujourd'hui, vous avez consommé un total de {consumption} Ah."
 
     if message:

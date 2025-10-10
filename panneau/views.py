@@ -1,6 +1,4 @@
 from rest_framework import status
-from django.utils.timezone import localtime
-
 # from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,7 +10,6 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Sum
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from datetime import datetime
 from django.db.models.functions import Cast
 from django.db.models import Sum, FloatField
 from django.db.models.functions import ExtractMonth
@@ -20,7 +17,6 @@ from datetime import datetime, timedelta
 from django.db.models.functions import ExtractWeek, ExtractWeekDay
 from calendar import monthrange
 # from datetime import timezone
-from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -42,6 +38,12 @@ from .serializers import PanneauPlanningSerializer
 from .serializers import PanneauReferenceSerializer
 from .serializers import PanneauRelaiStateSerializer
 from .serializers import PenneauAllSerializer
+from solar_backend.timezone_utils import (
+    local_day_bounds,
+    local_month_bounds,
+    local_now,
+    local_today,
+)
 
 
 @swagger_auto_schema(
@@ -678,7 +680,7 @@ def get_production_panneau_annuelle(request,module_id):
         panneau = get_object_or_404(Panneau, module=module)
 
         # Année en cours
-        current_year = datetime.now().year
+        current_year = local_today().year
 
         # Récupérer et regrouper les données par mois
         monthly_data = (
@@ -728,9 +730,11 @@ def get_panel_consumption_by_week(request,module_id):
     Retrieve panel consumption for each day of the current week, aggregated by day.
     """
     # Récupérer l'année et la semaine actuelle
-    today = datetime.today()
-    start_of_week = today - timedelta(days=today.weekday())  # Lundi de cette semaine
-    end_of_week = start_of_week + timedelta(days=6)  # Dimanche de cette semaine
+    today = local_today()
+    start_of_week_date = today - timedelta(days=today.weekday())  # Lundi de cette semaine
+    end_of_week_date = start_of_week_date + timedelta(days=6)  # Dimanche de cette semaine
+    start_of_week, _ = local_day_bounds(start_of_week_date)
+    _, end_of_week = local_day_bounds(end_of_week_date)
 
     # Récupérer les données de consommation par jour de la semaine
     # Cast("tension", FloatField())
@@ -773,9 +777,9 @@ def get_weekly_panneau_data_for_month(request, module_id, year, month):
         return Response({"error": "Month must be between 1 and 12."}, status=400)
 
     # Déterminer les premiers et derniers jours du mois
-    _, last_day_of_month = monthrange(year, month)
-    start_of_month = datetime(year, month, 1)
-    end_of_month = datetime(year, month, last_day_of_month, 23, 59, 59)
+    start_of_month, end_of_month = local_month_bounds(year, month)
+    start_of_month_date = start_of_month.date()
+    end_of_month_date = end_of_month.date()
 
     # Récupérer les données de la base de données
     # Cast("tension", FloatField())
@@ -822,8 +826,8 @@ def get_weekly_panneau_data_for_month(request, module_id, year, month):
         })
 
     # Ajouter les semaines sans données
-    current_date = start_of_month
-    while current_date <= end_of_month:
+    current_date = start_of_month_date
+    while current_date <= end_of_month_date:
         week_number = current_date.isocalendar()[1]  # Récupérer la semaine ISO
         if week_number not in weekly_data:
             response_data.append({
@@ -866,25 +870,25 @@ def get_daily_panneau_data_for_week(request, module_id, week_number, day_of_week
         )
 
     # Calculer la date du premier jour de l'année
-    first_day_of_year = datetime(datetime.today().year, 1, 1)
+    current_year = local_today().year
+    first_day_of_year = datetime(current_year, 1, 1).date()
 
     # Ajuster pour commencer la semaine un lundi si ce n'est pas le cas
     if first_day_of_year.weekday() != 0:  # 0 = lundi
         first_day_of_year -= timedelta(days=first_day_of_year.weekday())
 
     # Calculer la date du début de la semaine demandée
-    start_of_week = first_day_of_year + timedelta(weeks=week_number - 1)
+    start_of_week_date = first_day_of_year + timedelta(weeks=week_number - 1)
 
     # Trouver l'index du jour spécifié
     days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     day_of_week_index = days_of_week.index(day_of_week)
 
     # Calculer la date cible
-    target_day = start_of_week + timedelta(days=day_of_week_index)
+    target_day = start_of_week_date + timedelta(days=day_of_week_index)
 
     # Plage de temps pour inclure toutes les heures de la journée cible
-    start_of_day = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
-    end_of_day = datetime.combine(target_day, datetime.max.time()).replace(tzinfo=timezone.utc)
+    start_of_day, end_of_day = local_day_bounds(target_day)
 
     # Récupérer toutes les données réelles de panneau pour cette journée
     panneau_data = PanneauData.objects.filter(
@@ -1001,8 +1005,7 @@ def get_daily_panneau_data(request, module_id, week_number=None, day_of_week=Non
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-        end_of_day = datetime.combine(target_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+        start_of_day, end_of_day = local_day_bounds(target_date)
         
         # Récupérer les données panneau
         panneau_data = PanneauData.objects.filter(
@@ -1037,7 +1040,7 @@ def get_daily_panneau_data(request, module_id, week_number=None, day_of_week=Non
             "day_name": _get_french_day_name(target_date.strftime("%A")),
             "week_number": target_date.isocalendar()[1],
             "total_records": len(result),
-            "last_updated": timezone.now().isoformat(),
+            "last_updated": local_now().isoformat(),
             "data_range": {
                 "start": start_of_day.isoformat(),
                 "end": end_of_day.isoformat()
@@ -1072,7 +1075,7 @@ def get_panneau_data_filtered(request, module_id):
         year = request.GET.get("year")
         month = request.GET.get("month")
         day = request.GET.get("day")
-        now = timezone.now()
+        now = local_now()
 
         # Valeurs par défaut (aujourd'hui)
         year = int(year) if year else now.year
@@ -1081,15 +1084,14 @@ def get_panneau_data_filtered(request, module_id):
 
         # Validation de la date
         try:
-            target_date = datetime(year, month, day, tzinfo=timezone.utc)
+            target_date = datetime(year, month, day).date()
         except ValueError:
             return Response(
                 {"error": "Date invalide. Vérifiez l'année, le mois et le jour fournis."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        start_of_day = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_of_day = target_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+        start_of_day, end_of_day = local_day_bounds(target_date)
 
         # Récupération des données filtrées
         panneau_data = PanneauData.objects.filter(
@@ -1143,9 +1145,9 @@ def get_realtime_panneau_data(request, module_id):
     API pour récupérer les données panneau en temps réel (dernières 24h).
     """
     
-    now = timezone.now()
+    now = local_now()
     # yesterday = now - timedelta(hours=24)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start, _ = local_day_bounds(now)
 
     try:
         # Récupérer les données des dernières 24h
@@ -1202,9 +1204,8 @@ def get_panneau_statistics(request, module_id):
     """
     
     try:
-        today = timezone.now().date()
-        start_of_day = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
-        end_of_day = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
+        today = local_today()
+        start_of_day, end_of_day = local_day_bounds(today)
         
         # Récupérer les données du jour
         panneau_data = PanneauData.objects.filter(
@@ -1243,7 +1244,7 @@ def get_panneau_statistics(request, module_id):
             "date": today.strftime("%Y-%m-%d"),
             "total_records": len(panneau_data),
             "statistics": statistics,
-            "last_updated": timezone.now().isoformat()
+            "last_updated": local_now().isoformat()
         }
         
         return Response(response_data, status=status.HTTP_200_OK)

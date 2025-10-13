@@ -13,4 +13,9 @@ urlpatterns = [
         views.get_battery_monthly_stats,
         name="battery-monthly-stats",
     ),
+    path(
+        "prise/<str:module_id>/<int:year>/<int:month>",
+        views.get_prise_monthly_stats,
+        name="prise-monthly-stats",
+    ),
 ]

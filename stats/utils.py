@@ -28,6 +28,19 @@ def local_month_bounds(year: int, month: int, tz: tzinfo) -> tuple[datetime, dat
     return start, end
 
 
+def day_bounds(target: date | datetime, tz: tzinfo) -> tuple[datetime, datetime]:
+    """Return timezone-aware bounds for the provided day."""
+
+    if isinstance(target, datetime):
+        day = target.date()
+    else:
+        day = target
+
+    start = datetime(day.year, day.month, day.day, 0, 0, 0, tzinfo=tz)
+    end = datetime(day.year, day.month, day.day, 23, 59, 59, 999999, tzinfo=tz)
+    return start, end
+
+
 def week_slices_for_month(year: int, month: int, tz: tzinfo) -> List[dict]:
     """Return week slice definitions for the month using fixed day ranges."""
 

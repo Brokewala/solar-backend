@@ -347,6 +347,109 @@ def get_prise_monthly_stats(request, module_id: str, year: int, month: int):
 
 
 @api_view(["GET"])
+def get_panneau_monthly_stats(request, module_id: str, year: int, month: int):
+    if year <= 1970:
+        return Response(
+            {"detail": "L'année doit être supérieure à 1970."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if month < 1 or month > 12:
+        return Response(
+            {"detail": "Le mois doit être compris entre 1 et 12."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    metric = request.query_params.get("metric")
+    if not metric:
+        return Response(
+            {"detail": "Le paramètre 'metric' est obligatoire."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    metric = metric.lower()
+    allowed_metrics = {"tension", "puissance", "courant", "production"}
+    if metric not in allowed_metrics:
+        return Response(
+            {
+                "detail": (
+                    "La métrique doit être l'une des suivantes : "
+                    "tension, puissance, courant ou production."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    tz_param = request.query_params.get("tz")
+    try:
+        tzinfo = stats_get_tz(tz_param)
+    except ValueError:
+        return Response(
+            {"detail": "Le paramètre 'tz' est invalide."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        start_of_month, end_of_month = stats_local_month_bounds(year, month, tzinfo)
+        week_slices = stats_week_slices_for_month(year, month, tzinfo)
+    except ValueError:
+        return Response(
+            {"detail": "L'année ou le mois fourni est invalide."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    monthly_queryset = (
+        PanneauData.objects.filter(
+            panneau__module_id=module_id,
+            createdAt__gte=start_of_month,
+            createdAt__lte=end_of_month,
+        )
+        .annotate(local_day=TruncDay("createdAt", tzinfo=tzinfo))
+        .values("local_day")
+        .annotate(
+            total=Coalesce(
+                Sum(Cast(F(metric), FloatField())),
+                Value(0.0, output_field=FloatField()),
+            )
+        )
+    )
+
+    daily_totals: Dict[date, float] = {}
+    for row in monthly_queryset:
+        local_day = row.get("local_day")
+        if local_day is None:
+            continue
+        day_key = local_day.date() if hasattr(local_day, "date") else local_day
+        daily_totals[day_key] = stats_safe_float(row.get("total"))
+
+    response_payload = []
+    for week in week_slices:
+        week_data = [0.0] * 7
+        for current_day in _daterange(week["start_date"], week["end_date"]):
+            week_data[current_day.weekday()] = stats_safe_float(
+                daily_totals.get(current_day, 0.0)
+            )
+
+        response_payload.append(
+            {
+                "week_index": week["week_index"],
+                "range": {
+                    "start": week["start_date"].isoformat(),
+                    "end": week["end_date"].isoformat(),
+                },
+                "labels": WEEKDAY_LABELS,
+                "data": week_data,
+                "metric": metric,
+                "entity": "panneau",
+            }
+        )
+
+    response_payload.sort(key=lambda item: item["week_index"])
+
+    return Response(response_payload)
+
+
+@api_view(["GET"])
 def get_battery_monthly_stats(request, module_id: str, year: int, month: int):
     if year < 1:
         return Response(

@@ -9,6 +9,7 @@ Defaults are hard-coded so the app boots on Railway even without a `.env` file.
 | `WEB_CONCURRENCY` | 2 |
 | `WEB_TIMEOUT` | 60 |
 | `DATABASE_URL` | fallback SQLite at `/app/db.sqlite3` (Postgres required in prod) |
+| `TZ` | `Indian/Antananarivo` (configure in Railway Variables) |
 
 ## Run command
 ```

@@ -67,12 +67,23 @@ Exemple de fichier `.env` à placer à la racine :
 SECRET_KEY=ta_cle_secrete_django
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
+TIME_ZONE=Indian/Antananarivo
+TZ=Indian/Antananarivo
 DATABASE_URL=postgres://user:password@localhost:5432/solar_db
 ```
 
-**NB :**  
+**NB :**
 - Le fichier `settings.py` charge automatiquement `.env`.
 - Pour la production, adapte les variables sensibles et la configuration de la base de données.
+
+### 🕒 Fuseau horaire Antananarivo
+
+- Le projet fonctionne intégralement en fuseau `Indian/Antananarivo` (UTC+03:00).
+- Django est configuré avec `USE_TZ = True`, `TIME_ZONE = "Indian/Antananarivo"` et le middleware `TimeZoneMiddleware` pour rendre l’admin cohérent.
+- L’API REST renvoie les dates au format `%Y-%m-%dT%H:%M:%S%z`, ce qui garantit l’affichage `+03:00` dans les serializers.
+- Postgres est initialisé avec `-c timezone=Indian/Antananarivo` via `DATABASES['default']['OPTIONS']`.
+- Définis la variable d’environnement `TZ=Indian/Antananarivo` (par exemple dans Railway) pour que les processus système et cron restent alignés.
+- L’endpoint `/debug/time` permet de vérifier rapidement l’heure locale et l’heure UTC exposées par le backend.
 
 ---
 

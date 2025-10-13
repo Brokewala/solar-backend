@@ -6,15 +6,39 @@ production.
 
 import os
 import ast
+import sys
 import tempfile
+import importlib
 from pathlib import Path
 from datetime import timedelta
+from types import ModuleType
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 from dotenv import load_dotenv
 
 load_dotenv()
+
+try:
+    importlib.import_module("django.middleware.timezone")
+except ModuleNotFoundError:
+    from django.utils import timezone as django_timezone
+    from django.utils.deprecation import MiddlewareMixin
+
+    timezone_module = ModuleType("django.middleware.timezone")
+
+    class TimeZoneMiddleware(MiddlewareMixin):
+        """Fallback middleware for Django versions lacking TimeZoneMiddleware."""
+
+        def process_request(self, request):
+            django_timezone.activate(django_timezone.get_default_timezone())
+
+        def process_response(self, request, response):
+            django_timezone.deactivate()
+            return response
+
+    timezone_module.TimeZoneMiddleware = TimeZoneMiddleware
+    sys.modules["django.middleware.timezone"] = timezone_module
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -147,6 +171,17 @@ else:
         }
     }
 
+engine = DATABASES["default"].get("ENGINE", "")
+if "postgres" in engine:
+    db_options = DATABASES["default"].setdefault("OPTIONS", {})
+    existing_psql_options = db_options.get("options")
+    timezone_option = "-c timezone=Indian/Antananarivo"
+    if existing_psql_options:
+        if timezone_option not in existing_psql_options:
+            db_options["options"] = f"{existing_psql_options} {timezone_option}".strip()
+    else:
+        db_options["options"] = timezone_option
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -227,10 +262,6 @@ CORS_ALLOWED_ORIGINS = [
 # EMAIL_HOST_PASSWORD = "loxb wora pney rane"
 # EMAIL_USE_TLS = True
 # EMAIL_USE_SSL = False
-
-# time
-TIME_ZONE = 'Indian/Antananarivo'
-USE_TZ = True  # On garde True pour stocker en UTC mais savoir faire les conversions
 
 # ================
 EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"

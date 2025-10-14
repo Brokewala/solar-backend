@@ -752,6 +752,96 @@ def get_consommation_prise_annuelle(request,module_id):
         )
 
 
+
+@api_view(["GET"])
+def get_prise_annual_breakdown(request, module_id):
+    """
+    GET /api/prise/<module_id>/annual-breakdown?year=2025
+
+    Réponse:
+    {
+      "year": 2025,
+      "annual_totals": {
+        "tension": ...,
+        "puissance": ...,
+        "courant": ...,
+        "consomation": ...
+      },
+      "monthly": {
+        "tension":     [v1..v12],
+        "puissance":   [v1..v12],
+        "courant":     [v1..v12],
+        "consomation": [v1..v12]
+      }
+    }
+    """
+    if not module_id:
+        return Response({"detail": "Module ID is required"}, status=400)
+
+    # Année cible (?year=YYYY) sinon année locale courante
+    try:
+        year = int(request.query_params.get("year") or timezone.localdate().year)
+    except ValueError:
+        return Response({"detail": "Paramètre 'year' invalide"}, status=400)
+
+    # Récupérer module et prise liée
+    module = get_object_or_404(Modules, id=module_id)
+    prise = get_object_or_404(Prise, module=module)
+
+    # Filtrer l'année
+    qs = PriseData.objects.filter(prise=prise, createdAt__year=year)
+
+    # Sommes annuelles (un seul aller-retour BDD)
+    agg = qs.aggregate(
+        sum_tension     = Coalesce(Sum(Cast("tension",     FloatField())), 0.0),
+        sum_puissance   = Coalesce(Sum(Cast("puissance",   FloatField())), 0.0),
+        sum_courant     = Coalesce(Sum(Cast("courant",     FloatField())), 0.0),
+        sum_consomation = Coalesce(Sum(Cast("consomation", FloatField())), 0.0),
+    )
+
+    # Décomposition mensuelle (un seul aller-retour BDD)
+    monthly_qs = (
+        qs.annotate(month=ExtractMonth("createdAt"))
+          .values("month")
+          .annotate(
+              m_tension     = Coalesce(Sum(Cast("tension",     FloatField())), 0.0),
+              m_puissance   = Coalesce(Sum(Cast("puissance",   FloatField())), 0.0),
+              m_courant     = Coalesce(Sum(Cast("courant",     FloatField())), 0.0),
+              m_consomation = Coalesce(Sum(Cast("consomation", FloatField())), 0.0),
+          )
+          .order_by("month")
+    )
+
+    # Tableaux mensuels (12 cases) initialisés à 0.0
+    def zeros12(): return [0.0] * 12
+    m_tension, m_puissance, m_courant, m_consomation = zeros12(), zeros12(), zeros12(), zeros12()
+
+    for row in monthly_qs:
+        idx = (row["month"] or 0) - 1
+        if 0 <= idx < 12:
+            m_tension[idx]     = float(row["m_tension"] or 0.0)
+            m_puissance[idx]   = float(row["m_puissance"] or 0.0)
+            m_courant[idx]     = float(row["m_courant"] or 0.0)
+            m_consomation[idx] = float(row["m_consomation"] or 0.0)
+
+    data = {
+        "year": year,
+        "annual_totals": {
+            "tension":     float(agg["sum_tension"]),
+            "puissance":   float(agg["sum_puissance"]),
+            "courant":     float(agg["sum_courant"]),
+            "consomation": float(agg["sum_consomation"]),
+        },
+        "monthly": {
+            "tension":     m_tension,
+            "puissance":   m_puissance,
+            "courant":     m_courant,
+            "consomation": m_consomation,
+        },
+    }
+    return Response(data, status=status.HTTP_200_OK)
+
+
 @api_view(["GET"])
 def get_socket_consumption_by_week(request,module_id):
     """

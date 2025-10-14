@@ -66,11 +66,17 @@ urlpatterns = [
         views.get_prise_relay_state_by_module,
         name="get_prise_relay_state_by_module",
     ),
-    path(
+    # path(
+    #     "consommation-annuelle/<str:module_id>/",
+    #     views.get_consommation_prise_annuelle,
+    #     name="consommation-annuelle",
+    # ),
+     path(
         "consommation-annuelle/<str:module_id>/",
-        views.get_consommation_prise_annuelle,
+        views.get_prise_annual_breakdown,
         name="consommation-annuelle",
     ),
+    
     path('prsie-data-week/<str:module_id>/', views.get_socket_consumption_by_week),
     path('prise-data-weekly/<str:module_id>/<str:year>/<str:month>/', views.get_weekly_prise_data_for_month),
     path('prise-data-daily/<str:module_id>/<str:week_number>/<str:day_of_week>/', views.get_daily_prise_data_for_week),

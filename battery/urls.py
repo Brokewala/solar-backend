@@ -69,10 +69,15 @@ urlpatterns = [
         name="liste_batterie_data_by_date_and_id_module",
     ),
     # listeDureeBatterieMensuelleByIdModuleAndMonth
-     path(
+    #  path(
+    #     "battery-data-month/<str:module_id>/",
+    #     views.liste_duree_batterie_mensuelle_by_id_module_and_month,
+    #     name="liste_duree_batterie_mensuelle_by_id_module_and_month",
+    # ),
+      path(
         "battery-data-month/<str:module_id>/",
-        views.liste_duree_batterie_mensuelle_by_id_module_and_month,
-        name="liste_duree_batterie_mensuelle_by_id_module_and_month",
+        views.get_battery_annual_breakdown,
+        name="get_battery_annual_breakdown",
     ),
     path('battery-data-week/<str:module_id>/', views.get_battery_consumption_by_week),
     path('battery-data-weekly/<str:module_id>/<str:year>/<str:month>/', views.get_weekly_battery_data_for_month),

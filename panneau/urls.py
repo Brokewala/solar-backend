@@ -63,9 +63,14 @@ urlpatterns = [
         views.couleur_by_module,
         name="panneau-colors",
     ),  # Alias pour compatibilité frontend
-    path(
+    # path(
+    #     "production-annuelle/<str:module_id>/",
+    #     views.get_production_panneau_annuelle,
+    #     name="production-annuelle",
+    # ),
+     path(
         "production-annuelle/<str:module_id>/",
-        views.get_production_panneau_annuelle,
+        views.get_panneau_annual_breakdown,
         name="production-annuelle",
     ),
     path(

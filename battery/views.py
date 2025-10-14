@@ -13,6 +13,11 @@ from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+
+# views.py
+from django.db.models import FloatField
+
+
 # utils
 from users.utils import _calculate_target_date,_get_french_day_name
 
@@ -22,7 +27,6 @@ from django.db.models import Sum, F, Avg
 from django.db.models.functions import Coalesce
 from django.db.models.functions import ExtractYear
 from django.db.models import Q
-from django.db.models import FloatField
 from django.db.models.functions import ExtractMonth
 from django.db.models.functions import Cast
 from django.db.models.functions import ExtractWeekDay, ExtractWeek
@@ -1124,6 +1128,104 @@ def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id):
             consumption_data[week_index] = entry["total_consumption"]
 
     return Response({"labels": weekly_labels, "data": consumption_data})
+
+
+@api_view(["GET"])
+def get_battery_annual_breakdown(request, module_id):
+    """
+    GET /api/battery/<module_id>/annual-breakdown?year=2025
+
+    Réponse:
+    {
+      "year": 2025,
+      "annual_totals": {
+        "tension": ...,
+        "puissance": ...,
+        "courant": ...,
+        "energy": ...,
+        "pourcentage": ...
+      },
+      "monthly": {
+        "tension":     [v1..v12],
+        "puissance":   [v1..v12],
+        "courant":     [v1..v12],
+        "energy":      [v1..v12],
+        "pourcentage": [v1..v12]
+      }
+    }
+    """
+    if not module_id:
+        return Response({"detail": "Module ID is required"}, status=400)
+
+    # Année cible (?year=YYYY) sinon année locale courante
+    try:
+        year = int(request.query_params.get("year") or timezone.localdate().year)
+    except ValueError:
+        return Response({"detail": "Paramètre 'year' invalide"}, status=400)
+
+    # Récupération du module et de la batterie liée
+    module = get_object_or_404(Modules, id=module_id)
+    battery = get_object_or_404(Battery, module=module)
+
+    # Filtre année
+    qs = BatteryData.objects.filter(battery=battery, createdAt__year=year)
+
+    # Sommes annuelles (un seul aller-retour BDD)
+    agg = qs.aggregate(
+        sum_tension     = Coalesce(Sum(Cast("tension",     FloatField())), 0.0),
+        sum_puissance   = Coalesce(Sum(Cast("puissance",   FloatField())), 0.0),
+        sum_courant     = Coalesce(Sum(Cast("courant",     FloatField())), 0.0),
+        sum_energy      = Coalesce(Sum(Cast("energy",      FloatField())), 0.0),
+        sum_pourcentage = Coalesce(Sum(Cast("pourcentage", FloatField())), 0.0),
+    )
+
+    # Décomposition mensuelle (un seul aller-retour BDD)
+    monthly_qs = (
+        qs.annotate(month=ExtractMonth("createdAt"))
+          .values("month")
+          .annotate(
+              m_tension     = Coalesce(Sum(Cast("tension",     FloatField())), 0.0),
+              m_puissance   = Coalesce(Sum(Cast("puissance",   FloatField())), 0.0),
+              m_courant     = Coalesce(Sum(Cast("courant",     FloatField())), 0.0),
+              m_energy      = Coalesce(Sum(Cast("energy",      FloatField())), 0.0),
+              m_pourcentage = Coalesce(Sum(Cast("pourcentage", FloatField())), 0.0),
+          )
+          .order_by("month")
+    )
+
+    # Tableaux mensuels (12 cases) initialisés à 0.0
+    def zeros12(): return [0.0] * 12
+    m_tension, m_puissance, m_courant = zeros12(), zeros12(), zeros12()
+    m_energy, m_pourcentage = zeros12(), zeros12()
+
+    for row in monthly_qs:
+        idx = (row["month"] or 0) - 1
+        if 0 <= idx < 12:
+            m_tension[idx]      = float(row["m_tension"] or 0.0)
+            m_puissance[idx]    = float(row["m_puissance"] or 0.0)
+            m_courant[idx]      = float(row["m_courant"] or 0.0)
+            m_energy[idx]       = float(row["m_energy"] or 0.0)
+            m_pourcentage[idx]  = float(row["m_pourcentage"] or 0.0)
+
+    data = {
+        "year": year,
+        "annual_totals": {
+            "tension":     float(agg["sum_tension"]),
+            "puissance":   float(agg["sum_puissance"]),
+            "courant":     float(agg["sum_courant"]),
+            "energy":      float(agg["sum_energy"]),
+            "pourcentage": float(agg["sum_pourcentage"]),
+        },
+        "monthly": {
+            "tension":     m_tension,
+            "puissance":   m_puissance,
+            "courant":     m_courant,
+            "energy":      m_energy,
+            "pourcentage": m_pourcentage,
+        },
+    }
+    return Response(data, status=status.HTTP_200_OK)
+
 
 @api_view(["GET"])
 def get_battery_consumption_by_week(request,module_id):

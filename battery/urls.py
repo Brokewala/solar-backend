@@ -75,7 +75,7 @@ urlpatterns = [
     #     name="liste_duree_batterie_mensuelle_by_id_module_and_month",
     # ),
       path(
-        "battery-data-month/<str:module_id>/",
+        "<str:module_id>/battery-data-month",
         views.get_battery_annual_breakdown,
         name="get_battery_annual_breakdown",
     ),

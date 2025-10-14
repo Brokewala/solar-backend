@@ -72,7 +72,7 @@ urlpatterns = [
     #     name="consommation-annuelle",
     # ),
      path(
-        "consommation-annuelle/<str:module_id>/",
+        "<str:module_id>/consommation-annuelle",
         views.get_prise_annual_breakdown,
         name="consommation-annuelle",
     ),

@@ -16,7 +16,9 @@ from django.db.models.functions import Cast
 from datetime import datetime, timedelta
 from calendar import monthrange
 from django.db.models.functions import ExtractWeek, ExtractWeekDay
-# from datetime import timezone
+from datetime import timezone
+from django.db.models.functions import Coalesce
+
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 

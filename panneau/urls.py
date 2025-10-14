@@ -69,7 +69,7 @@ urlpatterns = [
     #     name="production-annuelle",
     # ),
      path(
-        "production-annuelle/<str:module_id>/",
+        "<str:module_id>/production-annuelle",
         views.get_panneau_annual_breakdown,
         name="production-annuelle",
     ),

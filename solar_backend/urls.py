@@ -8,11 +8,7 @@ from rest_framework import permissions
 from django.http import HttpResponse
 
 from solar_backend.views import debug_time_view
-from stats.views import (
-    BatteryWeeklyByMonthView,
-    PanneauWeeklyByMonthView,
-    PriseWeeklyByMonthView,
-)
+
 
 schema_view = get_schema_view(
    openapi.Info(
@@ -51,22 +47,6 @@ urlpatterns = [
     path('api/solar/subscription/', include("subscription.urls")),
     path('api/solar/notification/', include("notification.urls")),
     path('api/stats/', include("stats.urls")),
-    path(
-        'api/panneau/<str:module_id>/<int:year>/<int:month>/weekly',
-        PanneauWeeklyByMonthView.as_view(),
-        name='panneau-weekly-by-month',
-    ),
-    path(
-        'api/battery/<str:module_id>/<int:year>/<int:month>/weekly',
-        BatteryWeeklyByMonthView.as_view(),
-        name='battery-weekly-by-month',
-    ),
-    path(
-        'api/prise/<str:module_id>/<int:year>/<int:month>/weekly',
-        PriseWeeklyByMonthView.as_view(),
-        name='prise-weekly-by-month',
-    ),
-
 ]
 
 

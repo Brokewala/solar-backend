@@ -1,26 +1,24 @@
 from django.urls import path
-
-from . import views
+from stats.views import (
+    BatteryWeeklyByMonthView,
+    PanneauWeeklyByMonthView,
+    PriseWeeklyByMonthView,
+)
 
 urlpatterns = [
-    path(
-        "month-aggregate/<str:module_id>/<int:year>/<int:month>",
-        views.month_aggregate_view,
-        name="month-aggregate",
+  path(
+        'api/panneau/<str:module_id>/<int:year>/<int:month>/weekly',
+        PanneauWeeklyByMonthView.as_view(),
+        name='panneau-weekly-by-month',
     ),
     path(
-        "panneau/<str:module_id>/<int:year>/<int:month>",
-        views.get_panneau_monthly_stats,
-        name="panneau-monthly-stats",
+        'api/battery/<str:module_id>/<int:year>/<int:month>/weekly',
+        BatteryWeeklyByMonthView.as_view(),
+        name='battery-weekly-by-month',
     ),
     path(
-        "battery/<str:module_id>/<int:year>/<int:month>",
-        views.get_battery_monthly_stats,
-        name="battery-monthly-stats",
-    ),
-    path(
-        "prise/<str:module_id>/<int:year>/<int:month>",
-        views.get_prise_monthly_stats,
-        name="prise-monthly-stats",
+        'api/prise/<str:module_id>/<int:year>/<int:month>/weekly',
+        PriseWeeklyByMonthView.as_view(),
+        name='prise-weekly-by-month',
     ),
 ]

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Dict, Iterable, List
+from zoneinfo import ZoneInfo
 
 from django.db.models import F, Sum, Value
 from django.db.models import FloatField
-from django.db.models.functions import Cast, Coalesce, TruncDay
+from django.db.models.functions import Cast, Coalesce, TruncDay, TruncDate
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.views import APIView
 
 from battery.models import Battery, BatteryData
 from panneau.models import Panneau, PanneauData
@@ -26,6 +28,8 @@ from .utils import (
     day_bounds as stats_day_bounds,
     safe_float as stats_safe_float,
 )
+from .serializers import WeeklyByMonthResponseSerializer
+from .utils_weekly import month_weeks, week_index_for_day, week_label_days
 
 
 WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
@@ -551,3 +555,157 @@ def get_battery_monthly_stats(request, module_id: str, year: int, month: int):
     response_payload.sort(key=lambda item: item["week_index"])
 
     return Response(response_payload)
+
+
+class WeeklyByMonthBaseView(APIView):
+    """Base view implementing the shared weekly-by-month aggregation logic."""
+
+    entity_name: str = ""
+    data_model = None
+    module_lookup: str = ""
+    allowed_fields: Dict[str, str] = {}
+    default_field: str = ""
+    timezone_name: str = "Indian/Antananarivo"
+
+    def get(self, request, module_id: str, year: int, month: int):
+        if year < 1:
+            return Response(
+                {"detail": "L'année doit être supérieure ou égale à 1."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if month < 1 or month > 12:
+            return Response(
+                {"detail": "Le mois doit être compris entre 1 et 12."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not self.data_model or not self.module_lookup:
+            return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        requested_field = request.query_params.get("field")
+        if not requested_field:
+            requested_field = self.default_field
+
+        requested_field = requested_field.lower()
+        if requested_field not in self.allowed_fields:
+            return Response(
+                {
+                    "detail": (
+                        "Le paramètre 'field' doit être l'une des valeurs suivantes : "
+                        + ", ".join(sorted(self.allowed_fields.keys()))
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        model_field = self.allowed_fields[requested_field]
+
+        tzinfo = ZoneInfo(self.timezone_name)
+        start_of_month, end_of_month = local_month_bounds(year, month, tzinfo)
+
+        filters = {self.module_lookup: module_id}
+        queryset = (
+            self.data_model.objects.filter(
+                createdAt__gte=start_of_month,
+                createdAt__lte=end_of_month,
+                **filters,
+            )
+            .annotate(local_date=TruncDate("createdAt", tzinfo=tzinfo))
+            .values("local_date")
+            .annotate(
+                daily_sum=Coalesce(
+                    Sum(Cast(F(model_field), FloatField())),
+                    Value(0.0, output_field=FloatField()),
+                )
+            )
+        )
+
+        day_totals: Dict[date, float] = {}
+        for row in queryset:
+            local_date = row.get("local_date")
+            if local_date is None:
+                continue
+            if isinstance(local_date, datetime):
+                local_date = local_date.date()
+            day_totals[local_date] = float(row.get("daily_sum") or 0.0)
+
+        week_definitions = month_weeks(year, month)
+        weekday_labels = week_label_days()
+        week_payloads = []
+        for definition in week_definitions:
+            week_payloads.append(
+                {
+                    "week": definition.week,
+                    "range": {
+                        "start": definition.start,
+                        "end": definition.end,
+                    },
+                    "days": list(weekday_labels),
+                    "data": [0.0] * 7,
+                }
+            )
+
+        for current_day, total in day_totals.items():
+            bucket_index = week_index_for_day(current_day.day, week_definitions)
+            if bucket_index is None:
+                continue
+            weekday_index = current_day.weekday()
+            week_payloads[bucket_index]["data"][weekday_index] = float(total)
+
+        for week_payload in week_payloads:
+            week_sum = float(sum(week_payload["data"]))
+            week_avg = week_sum / 7.0 if week_payload["data"] else 0.0
+            week_payload["totals"] = {"sum": week_sum, "avg": week_avg}
+
+        response_payload = {
+            "year": year,
+            "month": month,
+            "entity": self.entity_name,
+            "module_id": module_id,
+            "field": requested_field,
+            "weeks": week_payloads,
+        }
+
+        serializer = WeeklyByMonthResponseSerializer(response_payload)
+        return Response(serializer.data)
+
+
+class PanneauWeeklyByMonthView(WeeklyByMonthBaseView):
+    entity_name = "panneau"
+    data_model = PanneauData
+    module_lookup = "panneau__module_id"
+    allowed_fields = {
+        "production": "production",
+        "tension": "tension",
+        "puissance": "puissance",
+        "courant": "courant",
+    }
+    default_field = "production"
+
+
+class BatteryWeeklyByMonthView(WeeklyByMonthBaseView):
+    entity_name = "battery"
+    data_model = BatteryData
+    module_lookup = "battery__module_id"
+    allowed_fields = {
+        "energy": "energy",
+        "tension": "tension",
+        "puissance": "puissance",
+        "courant": "courant",
+        "pourcentage": "pourcentage",
+    }
+    default_field = "energy"
+
+
+class PriseWeeklyByMonthView(WeeklyByMonthBaseView):
+    entity_name = "prise"
+    data_model = PriseData
+    module_lookup = "prise__module_id"
+    allowed_fields = {
+        "consomation": "consomation",
+        "tension": "tension",
+        "puissance": "puissance",
+        "courant": "courant",
+    }
+    default_field = "consomation"

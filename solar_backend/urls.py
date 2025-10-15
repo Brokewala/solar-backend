@@ -46,7 +46,7 @@ urlpatterns = [
     path('api/solar/report/', include("report.urls")),
     path('api/solar/subscription/', include("subscription.urls")),
     path('api/solar/notification/', include("notification.urls")),
-    path('api/stats/', include("stats.urls")),
+    path('api/solar/stats/', include("stats.urls")),
 ]
 
 

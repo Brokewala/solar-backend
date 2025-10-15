@@ -8,11 +8,7 @@ from rest_framework import permissions
 from django.http import HttpResponse
 
 from solar_backend.views import debug_time_view
-from solar_backend.views_daily import (
-    BatteryDailyAPIView,
-    PanneauDailyAPIView,
-    PriseDailyAPIView,
-)
+
 
 
 schema_view = get_schema_view(
@@ -35,21 +31,7 @@ def health_view(request):
 
 
 urlpatterns = [
-    path(
-        "api/panneau/<str:module_id>/<int:year>/<int:month>/<int:day>/daily",
-        PanneauDailyAPIView.as_view(),
-        name="panneau-daily",
-    ),
-    path(
-        "api/battery/<str:module_id>/<int:year>/<int:month>/<int:day>/daily",
-        BatteryDailyAPIView.as_view(),
-        name="battery-daily",
-    ),
-    path(
-        "api/prise/<str:module_id>/<int:year>/<int:month>/<int:day>/daily",
-        PriseDailyAPIView.as_view(),
-        name="prise-daily",
-    ),
+
     path('swagger<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),

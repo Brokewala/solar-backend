@@ -666,9 +666,16 @@ class WeeklyByMonthBaseView(APIView):
             week_payloads[bucket_index]["data"][weekday_index] = float(total)
 
         for week_payload in week_payloads:
-            week_sum = float(sum(week_payload["data"]))
-            week_avg = week_sum / 7.0 if week_payload["data"] else 0.0
-            week_payload["totals"] = {"sum": week_sum, "avg": week_avg}
+            week_values = week_payload["data"] or [0.0] * 7
+            week_sum = float(sum(week_values))
+            week_avg = week_sum / 7.0 if week_values else 0.0
+            week_min = float(min(week_values)) if week_values else 0.0
+            week_max = float(max(week_values)) if week_values else 0.0
+
+            if requested_field == "production":
+                week_payload["totals"] = {"total": week_sum, "avg": week_avg}
+            else:
+                week_payload["totals"] = {"min": week_min, "max": week_max}
 
         response_payload = {
             "year": year,
@@ -793,6 +800,18 @@ class BaseDailyAPIView(APIView):
                 count = 0
 
         avg = float(total / count) if count else 0.0
+        min_value = float(min(numeric_values)) if numeric_values else 0.0
+        max_value = float(max(numeric_values)) if numeric_values else 0.0
+
+        if field == "production":
+            stats_block = {"total": total, "avg": avg, "count": count}
+        else:
+            stats_block = {
+                "min": min_value,
+                "max": max_value,
+                "avg": avg,
+                "count": count,
+            }
 
         payload = {
             "date": f"{year:04d}-{month:02d}-{day:02d}",
@@ -801,11 +820,7 @@ class BaseDailyAPIView(APIView):
             "module_id": module_id,
             "field": field,
             "data": data,
-            "stats": {
-                "count": count,
-                "total": total,
-                "avg": avg,
-            },
+            "stats": stats_block,
         }
 
         return Response(payload, status=status.HTTP_200_OK)

@@ -259,3 +259,84 @@ class DailyStatsAPITests(APITestCase):
             field="consomation",
             expected_values=expected_sequence,
         )
+
+    def test_daily_views_enforce_allowed_fields_configuration(self):
+        from stats.views import (
+            BatteryDailyAPIView,
+            PanneauDailyAPIView,
+            PriseDailyAPIView,
+        )
+
+        self.assertEqual(PanneauDailyAPIView.default_field, "production")
+        self.assertSetEqual(
+            set(PanneauDailyAPIView.allowed_fields),
+            {"production", "tension", "puissance", "courant"},
+        )
+
+        self.assertEqual(BatteryDailyAPIView.default_field, "energy")
+        self.assertSetEqual(
+            set(BatteryDailyAPIView.allowed_fields),
+            {"energy", "pourcentage", "tension", "puissance", "courant"},
+        )
+
+        self.assertEqual(PriseDailyAPIView.default_field, "consomation")
+        self.assertSetEqual(
+            set(PriseDailyAPIView.allowed_fields),
+            {"consomation", "tension", "puissance", "courant"},
+        )
+
+    def test_daily_views_use_default_field_when_missing(self):
+        query_day = datetime(2024, 8, 5, 12, 0, tzinfo=self.tz)
+
+        self._create_data_point(
+            PanneauData,
+            "panneau",
+            self.panneau,
+            "production",
+            "4.2",
+            query_day,
+        )
+
+        url = reverse(
+            "panneau-daily",
+            kwargs={
+                "module_id": self.module_id,
+                "year": query_day.year,
+                "month": query_day.month,
+                "day": query_day.day,
+            },
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        expected_sequence = [(query_day, 4.2)]
+        self._assert_daily_response(
+            response.data,
+            entity="panneau",
+            module_id=self.module_id,
+            field="production",
+            expected_values=expected_sequence,
+        )
+
+    def test_daily_views_reject_unknown_field(self):
+        query_day = datetime(2024, 9, 10, tzinfo=self.tz)
+
+        url = reverse(
+            "prise-daily",
+            kwargs={
+                "module_id": self.module_id,
+                "year": query_day.year,
+                "month": query_day.month,
+                "day": query_day.day,
+            },
+        )
+
+        response = self.client.get(url, {"field": "invalid"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("field", response.data)
+        detail = response.data["field"]
+        if isinstance(detail, (list, tuple)):
+            messages = [str(item) for item in detail]
+        else:
+            messages = [str(detail)]
+        self.assertTrue(any("Invalid field" in msg for msg in messages))

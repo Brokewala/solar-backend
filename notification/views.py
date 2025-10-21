@@ -19,6 +19,15 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from datetime import timedelta
 
+from solar_backend.timezone_utils import (
+    get_local_timezone,
+    local_day_bounds,
+    local_month_bounds,
+    local_now,
+    local_today,
+)
+
+
 # Notif
 from .models import Notification
 from users.models import ProfilUser
@@ -45,6 +54,15 @@ from solar_backend.timezone_utils import local_now
 
 logger = logging.getLogger(__name__)
 
+
+try:
+    from zoneinfo import ZoneInfo      # Python 3.9+
+except ImportError:
+    from pytz import timezone as pytz_timezone
+    def ZoneInfo(tzname): return pytz_timezone(tzname)
+
+
+TANA = ZoneInfo("Indian/Antananarivo")  # TZ unique du projet
 
 
 def create_notification_serializer(user_id,name,message):
@@ -570,22 +588,44 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
     if not created:  # Ne notifier que lors de la création d'une nouvelle entrée
         return
     
+    created_dt = getattr(instance, "createdAt", timezone.now())
+    created_local = timezone.localtime(created_dt, TANA)
+
 
     # send    
     panneau = instance.panneau
     user_id  = panneau.module.user.id
+    module = getattr(panneau, "module", None)
 
-     # Construire formatted_entry (même format que votre API)
-    created_at = getattr(instance, "createdAt", timezone.now())
-    formatted_entry = {
-        "timestamp": created_at.isoformat(),
-        "hour_label": created_at.strftime("%H:%M"),
+    payload = {
+        # ISO strict avec offset “+03:00”
+        "timestamp": created_local.isoformat(timespec="seconds"),
+        # Référence UTC (utile au debug côté client)
+        "timestamp_utc": timezone.localtime(created_dt, timezone.utc).isoformat(timespec="seconds"),
+        # Label d’affichage EXACT en heure locale
+        "hour_label": created_local.strftime("%H:%M"),
+
         "tension": float(instance.tension or 0),
         "puissance": float(instance.puissance or 0),
         "courant": float(instance.courant or 0),
         "production": float(instance.production or 0),
+
+        # métadonnées pratiques
+        "component_type": "panneau",
+        "module_id": str(getattr(module, "id", "")),
     }
+
+     # Construire formatted_entry (même format que votre API)
+    # created_at = getattr(instance, "createdAt", timezone.now())
+    # formatted_entry = {
+    #     "timestamp": created_at.isoformat(),
+    #     "hour_label": created_at.strftime("%H:%M"),
+    #     "tension": float(instance.tension or 0),
+    #     "puissance": float(instance.puissance or 0),
+    #     "courant": float(instance.courant or 0),
+    #     "production": float(instance.production or 0),
+    # }
     
     if not user_id :  # Si l'utilisateur n'est pas défini, ne pas continuer
         return
-    send_websocket_notification(user_id , formatted_entry)
+    send_websocket_notification(user_id , payload)

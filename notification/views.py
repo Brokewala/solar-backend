@@ -421,17 +421,29 @@ def notify_battery_send_reel_data(sender, instance, created, **kwargs):
 
     # send    
     user_id = instance.battery.module.user.id
+    created_dt = getattr(instance, "createdAt", timezone.now())
+    created_local = timezone.localtime(created_dt, TANA)
 
+    battery = instance.battery
+    module = getattr(battery, "module", None)
      # Construire formatted_entry (même format que votre API)
-    created_at = getattr(instance, "createdAt", timezone.now())
+    # created_at = getattr(instance, "createdAt", timezone.now())
     formatted_entry = {
-        "timestamp": created_at.isoformat(),
-        "hour_label": created_at.strftime("%H:%M"),
+         # ISO strict avec offset “+03:00”
+        "timestamp": created_local.isoformat(timespec="seconds"),
+        # Référence UTC (utile au debug côté client)
+        "timestamp_utc": timezone.localtime(created_dt, timezone.utc).isoformat(timespec="seconds"),
+        # Label d’affichage EXACT en heure locale
+        "hour_label": created_local.strftime("%H:%M"),
         "tension": float(instance.tension or 0),
         "puissance": float(instance.puissance or 0),
         "courant": float(instance.courant or 0),
         "energy": float(instance.energy or 0),
         "pourcentage": float(instance.pourcentage or 0),
+        
+           # métadonnées pratiques
+        "component_type": "battery",
+        "module_id": str(getattr(module, "id", "")),
     }
     
     if not user_id :  # Si l'utilisateur n'est pas défini, ne pas continuer
@@ -497,16 +509,28 @@ def notify_prise_send_reel_data(sender, instance, created, **kwargs):
 
     # send    
     user_id = instance.prise.module.user.id
+    prise = instance.prise
+    module = getattr(prise, "module", None)
+ 
+    created_dt = getattr(instance, "createdAt", timezone.now())
+    created_local = timezone.localtime(created_dt, TANA)
 
      # Construire formatted_entry (même format que votre API)
-    created_at = getattr(instance, "createdAt", timezone.now())
+    # created_at = getattr(instance, "createdAt", timezone.now())
     formatted_entry = {
-        "timestamp": created_at.isoformat(),
-        "hour_label": created_at.strftime("%H:%M"),
+         # ISO strict avec offset “+03:00”
+        "timestamp": created_local.isoformat(timespec="seconds"),
+        # Référence UTC (utile au debug côté client)
+        "timestamp_utc": timezone.localtime(created_dt, timezone.utc).isoformat(timespec="seconds"),
+        # Label d’affichage EXACT en heure locale
+        "hour_label": created_local.strftime("%H:%M"),
         "tension": float(instance.tension or 0),
         "puissance": float(instance.puissance or 0),
         "courant": float(instance.courant or 0),
         "consommation": float(instance.consomation or 0),
+          # métadonnées pratiques
+        "component_type": "prise",
+        "module_id": str(getattr(module, "id", "")),
     }
     
     if not user_id :  # Si l'utilisateur n'est pas défini, ne pas continuer

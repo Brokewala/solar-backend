@@ -22,6 +22,15 @@ from django.db.models.functions import Coalesce
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from solar_backend.timezone_utils import (
+    get_local_timezone,
+    local_day_bounds,
+    local_month_bounds,
+    local_now,
+    local_today,
+)
+
+
 # utils
 from users.utils import _calculate_target_date,_get_french_day_name
 
@@ -1176,29 +1185,34 @@ def get_realtime_prise_data(request, module_id):
     API pour récupérer les données prise en temps réel (dernières 24h).
     """
     
-    now = local_now()
-    # yesterday = now - timedelta(hours=24)
-    today_start, _ = local_day_bounds(now)
+    tz_tana = get_local_timezone()
+    now_tana = local_now()
+    start_of_day_tana, _ = local_day_bounds(now_tana)
+
+    start_utc = start_of_day_tana.astimezone(timezone.utc)
+    now_utc = now_tana.astimezone(timezone.utc)
 
     try:
         # Récupérer les données des dernières 24h
         queryset = PriseData.objects.filter(
             prise__module_id=module_id,
-            createdAt__gte=today_start,
-            createdAt__lte=now
-        ).order_by("-createdAt")
+            createdAt__gte=start_utc,
+            createdAt__lte=now_utc
+        ).order_by("createdAt")
         
         # Formater les données
         data = []
         for entry in queryset:
-            created_at = entry.createdAt
-            # hour_decimal = created_at.hour + (created_at.minute / 60.0) + (created_at.second / 3600.0)
+            created_at_utc = entry.createdAt
+            created_at_local = created_at_utc.astimezone(tz_tana)
+            
             
             formatted_entry = {
-                "timestamp": created_at.isoformat(),
-                # "hour_decimal": round(hour_decimal, 3),
-                "hour_label": created_at.strftime("%H:%M"),
-                # "date_label": created_at.strftime("%d/%m/%Y"),
+                "timestamp": created_at_local.isoformat(timespec="seconds"),
+                "timestamp_utc": created_at_utc.astimezone(timezone.utc).isoformat(
+                    timespec="seconds"
+                ),
+                "hour_label": created_at_local.strftime("%H:%M"),
                 "tension": float(entry.tension or 0),
                 "puissance": float(entry.puissance or 0),
                 "courant": float(entry.courant or 0),
@@ -1214,7 +1228,7 @@ def get_realtime_prise_data(request, module_id):
             "realtime": True,
             "data_period": "24h",
             "total_records": len(data),
-            "last_updated": now.isoformat(),
+            "last_updated": now_tana.isoformat(timespec="seconds"),
             "refresh_interval": 30,
             "data": data
         }

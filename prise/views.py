@@ -10,7 +10,7 @@ from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.db.models import Sum, F, FloatField
+from django.db.models import Sum, F, FloatField, Count, Q
 from django.db.models.functions import ExtractMonth
 from django.db.models.functions import Cast
 from datetime import datetime, timedelta
@@ -805,10 +805,22 @@ def get_prise_annual_breakdown(request, module_id):
     # Sommes annuelles (un seul aller-retour BDD)
     agg = qs.aggregate(
         sum_tension     = Coalesce(Sum(Cast("tension",     FloatField())), 0.0),
+        cnt_tension     = Count("id", filter=Q(tension__isnull=False) & ~Q(tension="")),
         sum_puissance   = Coalesce(Sum(Cast("puissance",   FloatField())), 0.0),
+        cnt_puissance   = Count("id", filter=Q(puissance__isnull=False) & ~Q(puissance="")),
         sum_courant     = Coalesce(Sum(Cast("courant",     FloatField())), 0.0),
+        cnt_courant     = Count("id", filter=Q(courant__isnull=False) & ~Q(courant="")),
         sum_consomation = Coalesce(Sum(Cast("consomation", FloatField())), 0.0),
+        cnt_consomation = Count("id", filter=Q(consomation__isnull=False) & ~Q(consomation="")),
     )
+
+    def avg(sum_val, cnt):
+        return float(sum_val) / cnt if cnt else 0.0
+
+    avg_tension = avg(agg["sum_tension"], agg["cnt_tension"] or 0)
+    avg_puissance = avg(agg["sum_puissance"], agg["cnt_puissance"] or 0)
+    avg_courant = avg(agg["sum_courant"], agg["cnt_courant"] or 0)
+    avg_consomation = avg(agg["sum_consomation"], agg["cnt_consomation"] or 0)
 
     # Décomposition mensuelle (un seul aller-retour BDD)
     monthly_qs = (
@@ -842,6 +854,12 @@ def get_prise_annual_breakdown(request, module_id):
             "puissance":   float(agg["sum_puissance"]),
             "courant":     float(agg["sum_courant"]),
             "consomation": float(agg["sum_consomation"]),
+        },
+        "annual": {
+            "tension":     {"average": avg_tension},
+            "puissance":   {"average": avg_puissance},
+            "courant":     {"average": avg_courant},
+            "consomation": {"average": avg_consomation, "total": float(agg["sum_consomation"])},
         },
         "monthly": {
             "tension":     m_tension,

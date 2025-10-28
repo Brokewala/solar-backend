@@ -15,6 +15,7 @@ class Prise(models.Model):
     )
     name = models.CharField(max_length=200, null=True, blank=True)
     voltage = models.CharField(max_length=200, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
 
@@ -32,6 +33,7 @@ class PriseData(models.Model):
     puissance = models.CharField(max_length=200, null=True, blank=True)
     courant = models.CharField(max_length=200, null=True, blank=True)
     consomation = models.CharField(max_length=200, null=True, blank=True)
+   
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
 

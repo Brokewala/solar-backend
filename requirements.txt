@@ -19,10 +19,11 @@ django-anymail
 # moviepy==1.0.3
 # oauthlib==3.2.0
 # passlib==1.7.4
-Pillow==9.0.1
+# Pillow==9.0.1
+Pillow
 psycopg
 # psycopg2
-psycopg2-binary==2.9.6
+# psycopg2-binary==2.9.6
 # pydub
 PyJWT
 # python-decouple==3.8

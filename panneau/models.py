@@ -16,6 +16,7 @@ class Panneau(models.Model):
     marque = models.CharField(max_length=200, null=True, blank=True)
     puissance = models.CharField(max_length=200, null=True, blank=True)
     voltage = models.CharField(max_length=200, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Appliquer les migrations
+# Appliquer les migrationssss
 echo "Appliquer les migrations..."
 python manage.py makemigrations
 python manage.py migrate

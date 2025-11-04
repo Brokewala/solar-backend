@@ -1138,47 +1138,140 @@ def liste_duree_batterie_mensuelle_by_id_module_and_month(request, module_id):
     return Response({"labels": weekly_labels, "data": consumption_data})
 
 
+# @api_view(["GET"])
+# def get_battery_annual_breakdown(request, module_id):
+#     """
+#     GET /api/battery/<module_id>/annual-breakdown?year=2025
+
+#     Réponse:
+#     {
+#       "year": 2025,
+#       "annual_totals": {
+#         "tension": ...,
+#         "puissance": ...,
+#         "courant": ...,
+#         "energy": ...,
+#         "pourcentage": ...
+#       },
+#       "monthly": {
+#         "tension":     [v1..v12],
+#         "puissance":   [v1..v12],
+#         "courant":     [v1..v12],
+#         "energy":      [v1..v12],
+#         "pourcentage": [v1..v12]
+#       },
+#       {
+#           "min':min_all_data,
+#           "max':max_all_data,
+#       }
+#     }
+#     """
+#     if not module_id:
+#         return Response({"detail": "Module ID is required"}, status=400)
+
+#     # Année cible (?year=YYYY) sinon année locale courante
+#     try:
+#         year = int(request.query_params.get("year") or timezone.localdate().year)
+#     except ValueError:
+#         return Response({"detail": "Paramètre 'year' invalide"}, status=400)
+
+#     # Récupération du module et de la batterie liée
+#     module = get_object_or_404(Modules, id=module_id)
+#     battery = get_object_or_404(Battery, module=module)
+
+#     # Filtre année
+#     qs = BatteryData.objects.filter(battery=battery, createdAt__year=year)
+
+#     # Sommes annuelles (un seul aller-retour BDD)
+#     agg = qs.aggregate(
+#         sum_tension     = Coalesce(Sum(Cast("tension",     FloatField())), 0.0),
+#         sum_puissance   = Coalesce(Sum(Cast("puissance",   FloatField())), 0.0),
+#         sum_courant     = Coalesce(Sum(Cast("courant",     FloatField())), 0.0),
+#         sum_energy      = Coalesce(Sum(Cast("energy",      FloatField())), 0.0),
+#         sum_pourcentage = Coalesce(Sum(Cast("pourcentage", FloatField())), 0.0),
+#     )
+
+#     # Décomposition mensuelle (un seul aller-retour BDD)
+#     monthly_qs = (
+#         qs.annotate(month=ExtractMonth("createdAt"))
+#           .values("month")
+#           .annotate(
+#               m_tension     = Coalesce(Sum(Cast("tension",     FloatField())), 0.0),
+#               m_puissance   = Coalesce(Sum(Cast("puissance",   FloatField())), 0.0),
+#               m_courant     = Coalesce(Sum(Cast("courant",     FloatField())), 0.0),
+#               m_energy      = Coalesce(Sum(Cast("energy",      FloatField())), 0.0),
+#               m_pourcentage = Coalesce(Sum(Cast("pourcentage", FloatField())), 0.0),
+#           )
+#           .order_by("month")
+#     )
+
+#     # Tableaux mensuels (12 cases) initialisés à 0.0
+#     def zeros12(): return [0.0] * 12
+#     m_tension, m_puissance, m_courant = zeros12(), zeros12(), zeros12()
+#     m_energy, m_pourcentage = zeros12(), zeros12()
+
+#     for row in monthly_qs:
+#         idx = (row["month"] or 0) - 1
+#         if 0 <= idx < 12:
+#             m_tension[idx]      = float(row["m_tension"] or 0.0)
+#             m_puissance[idx]    = float(row["m_puissance"] or 0.0)
+#             m_courant[idx]      = float(row["m_courant"] or 0.0)
+#             m_energy[idx]       = float(row["m_energy"] or 0.0)
+#             m_pourcentage[idx]  = float(row["m_pourcentage"] or 0.0)
+
+#     data = {
+#         "year": year,
+#         "annual_totals": {
+#             "tension":     float(agg["sum_tension"]),
+#             "puissance":   float(agg["sum_puissance"]),
+#             "courant":     float(agg["sum_courant"]),
+#             "energy":      float(agg["sum_energy"]),
+#             "pourcentage": float(agg["sum_pourcentage"]),
+#         },
+#         "monthly": {
+#             "tension":     m_tension,
+#             "puissance":   m_puissance,
+#             "courant":     m_courant,
+#             "energy":      m_energy,
+#             "pourcentage": m_pourcentage,
+#         },
+#     }
+#     return Response(data, status=status.HTTP_200_OK)
+
+
+
 @api_view(["GET"])
 def get_battery_annual_breakdown(request, module_id):
     """
-    GET /api/battery/<module_id>/annual-breakdown?year=2025
+    GET /api/battery/<module_id>/annual-breakdown?year=2025&component=energie
 
     Réponse:
     {
       "year": 2025,
-      "annual_totals": {
-        "tension": ...,
-        "puissance": ...,
-        "courant": ...,
-        "energy": ...,
-        "pourcentage": ...
-      },
-      "monthly": {
-        "tension":     [v1..v12],
-        "puissance":   [v1..v12],
-        "courant":     [v1..v12],
-        "energy":      [v1..v12],
-        "pourcentage": [v1..v12]
-      }
+      "annual_totals": {...},
+      "monthly": {...},
+      "min_or_moyenne": { "tension": x, "puissance": y, ... },
+      "max_or_total":   { "tension": a, "puissance": b, ... }
     }
     """
     if not module_id:
         return Response({"detail": "Module ID is required"}, status=400)
 
-    # Année cible (?year=YYYY) sinon année locale courante
     try:
         year = int(request.query_params.get("year") or timezone.localdate().year)
     except ValueError:
         return Response({"detail": "Paramètre 'year' invalide"}, status=400)
 
-    # Récupération du module et de la batterie liée
+    component = (request.query_params.get("component") or "").strip().lower()
+    avg_total_components = {"production", "energie", "energy", "consommation", "consomation"}
+    use_avg_total = component in avg_total_components
+
     module = get_object_or_404(Modules, id=module_id)
     battery = get_object_or_404(Battery, module=module)
 
-    # Filtre année
     qs = BatteryData.objects.filter(battery=battery, createdAt__year=year)
 
-    # Sommes annuelles (un seul aller-retour BDD)
+    # ----- Totaux annuels (bloc existant) -----
     agg = qs.aggregate(
         sum_tension     = Coalesce(Sum(Cast("tension",     FloatField())), 0.0),
         sum_puissance   = Coalesce(Sum(Cast("puissance",   FloatField())), 0.0),
@@ -1187,7 +1280,7 @@ def get_battery_annual_breakdown(request, module_id):
         sum_pourcentage = Coalesce(Sum(Cast("pourcentage", FloatField())), 0.0),
     )
 
-    # Décomposition mensuelle (un seul aller-retour BDD)
+    # ----- Décomposition mensuelle (sommes) -----
     monthly_qs = (
         qs.annotate(month=ExtractMonth("createdAt"))
           .values("month")
@@ -1201,7 +1294,6 @@ def get_battery_annual_breakdown(request, module_id):
           .order_by("month")
     )
 
-    # Tableaux mensuels (12 cases) initialisés à 0.0
     def zeros12(): return [0.0] * 12
     m_tension, m_puissance, m_courant = zeros12(), zeros12(), zeros12()
     m_energy, m_pourcentage = zeros12(), zeros12()
@@ -1214,6 +1306,28 @@ def get_battery_annual_breakdown(request, module_id):
             m_courant[idx]      = float(row["m_courant"] or 0.0)
             m_energy[idx]       = float(row["m_energy"] or 0.0)
             m_pourcentage[idx]  = float(row["m_pourcentage"] or 0.0)
+
+    # ----- Statistiques annuelles "réelles" (par valeur, pas par somme) -----
+    metrics = ["tension", "puissance", "courant", "energy", "pourcentage"]
+
+    annual_minmax = qs.aggregate(
+        **{f"min_{m}": Coalesce(Min(Cast(m, FloatField())), 0.0) for m in metrics},
+        **{f"max_{m}": Coalesce(Max(Cast(m, FloatField())), 0.0) for m in metrics},
+    )
+    annual_avgtotal = qs.aggregate(
+        **{f"avg_{m}": Coalesce(Avg(Cast(m, FloatField())), 0.0) for m in metrics},
+        **{f"tot_{m}": Coalesce(Sum(Cast(m, FloatField())), 0.0) for m in metrics},
+    )
+
+    # ----- Construction des deux clés demandées -----
+    if use_avg_total:
+        # Moyenne annuelle (réelle) & Total annuel
+        min_or_moyenne = {m: float(annual_avgtotal[f"avg_{m}"]) for m in metrics}
+        max_or_total   = {m: float(annual_avgtotal[f"tot_{m}"]) for m in metrics}
+    else:
+        # Min et Max annuels (réels, sur chaque mesure individuelle)
+        min_or_moyenne = {m: float(annual_minmax[f"min_{m}"]) for m in metrics}
+        max_or_total   = {m: float(annual_minmax[f"max_{m}"]) for m in metrics}
 
     data = {
         "year": year,
@@ -1231,6 +1345,9 @@ def get_battery_annual_breakdown(request, module_id):
             "energy":      m_energy,
             "pourcentage": m_pourcentage,
         },
+        # === Nouvelles clés conformes à votre schéma ===
+        "min_or_moyenne": min_or_moyenne,
+        "max_or_total":   max_or_total,
     }
     return Response(data, status=status.HTTP_200_OK)
 

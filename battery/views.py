@@ -8,6 +8,8 @@ from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.db.models import Sum, Avg, Min, Max
+
 # from datetime import timezone
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema

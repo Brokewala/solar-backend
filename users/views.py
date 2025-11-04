@@ -47,14 +47,14 @@ def send_email_notification(email_content, email, titre):
 
 
 @swagger_auto_schema(
-    method='POST',
+    method='GET',
     operation_description="Teste l'envoi d'email",
     responses={
         200: openapi.Response('Email envoyé avec succès'),
         500: 'Internal Server Error'
     }
 )
-@api_view(["POST"])
+@api_view(["GET"])
 def teste_email(request):
     send_email_notification("salut test ESP32",'brokewala@gmail.com',"teste salut .from serveur de lodphin")
     return Response({"message": "Email sent successfully"})

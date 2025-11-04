@@ -56,7 +56,7 @@ def send_email_notification(email_content, email, titre):
 )
 @api_view(["POST"])
 def teste_email(request):
-    send_email_notification("salut test ESP32",'rakotoarisoa.ga@gmail.com',"teste salut .from serveur de lodphin")
+    send_email_notification("salut test ESP32",'brokewala@gmail.com',"teste salut .from serveur de lodphin")
     return Response({"message": "Email sent successfully"})
 
 

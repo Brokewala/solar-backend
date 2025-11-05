@@ -191,7 +191,7 @@ def create_module_all(request):
 def get_one_module_by_user(request, user_id):
     try:
         modules = Modules.objects.get(user__id=user_id)
-        serializer = ModulesSerializer(modules, many=False)
+        serializer = ModulesSerializerIOT(modules, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Modules.DoesNotExist:
         return Response(

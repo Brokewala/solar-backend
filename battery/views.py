@@ -24,8 +24,6 @@ from solar_backend.timezone_utils import (
 )
 
 
-# views.py
-from django.db.models import FloatField
 
 
 # utils
@@ -33,6 +31,7 @@ from users.utils import _calculate_target_date,_get_french_day_name
 
 # django
 from datetime import datetime, timedelta
+from django.db.models import FloatField
 from django.db.models import Sum, F, Avg
 from django.db.models.functions import Coalesce
 from django.db.models.functions import ExtractYear

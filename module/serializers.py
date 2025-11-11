@@ -38,9 +38,9 @@ class ModulesSerializerIOT(serializers.ModelSerializer):
         extra_kwargs = {
             'id': {'read_only': True, 'help_text': 'Identifiant unique du module'},
             'user': {'help_text': 'Utilisateur propriétaire du module'},
-            'reference': {'help_text': 'Référence du module'},
-            'identifiant': {'help_text': 'Identifiant unique du module'},
-            'password': {'help_text': 'Mot de passe du module'},
+            'reference_battery': {'help_text': 'Référence du battery'},
+            'reference_prise': {'help_text': 'Référence du prise'},
+            'reference_panneau': {'help_text': 'Référence du panneau'},
             'active': {'help_text': 'Indique si le module est actif'},
             'createdAt': {'read_only': True, 'help_text': 'Date de création'},
             'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}

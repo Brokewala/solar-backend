@@ -19,9 +19,9 @@ class Modules(models.Model):
         related_name="module_user",
     )
 
-    reference = models.CharField(max_length=200,blank=True,null=True)
-    identifiant = models.CharField(max_length=200,blank=True,null=True)
-    password = models.CharField(max_length=200,blank=True,null=True)
+    reference_battery = models.CharField(max_length=200,blank=True,null=True)
+    reference_prise = models.CharField(max_length=200,blank=True,null=True)
+    reference_panneau = models.CharField(max_length=200,blank=True,null=True)
     active = models.BooleanField(default=False)
     activation_code = models.CharField(max_length=100, unique=True,blank=True,null=True)
     createdAt = models.DateTimeField(auto_now_add=True)

@@ -3,9 +3,9 @@ from rest_framework import serializers
 # model
 from .models import Modules, ModulesInfo, ModulesDetail
 from users.serializers import ProfilUserSerializer
-from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from users.models import ProfilUser
+from django.db.models import Q
 
 
 # serializer
@@ -18,11 +18,13 @@ class ModulesSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'id': {'read_only': True, 'help_text': 'Identifiant unique du module'},
             'user': {'help_text': 'Utilisateur propriétaire du module'},
-            'reference': {'help_text': 'Référence du module'},
-            'identifiant': {'help_text': 'Identifiant unique du module'},
-            'password': {'help_text': 'Mot de passe du module'},
+            'reference_battery': {'help_text': 'Référence associée à la batterie'},
+            'reference_prise': {'help_text': 'Référence associée à la prise'},
+            'reference_panneau': {'help_text': 'Référence associée au panneau'},
             'active': {'help_text': 'Indique si le module est actif'},
+            'activation_code': {'help_text': "Code d'activation du module"},
             'createdAt': {'read_only': True, 'help_text': 'Date de création'},
+            'activated_at': {'read_only': True, 'help_text': "Date d'activation"},
             'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}
         }
 
@@ -38,11 +40,13 @@ class ModulesSerializerIOT(serializers.ModelSerializer):
         extra_kwargs = {
             'id': {'read_only': True, 'help_text': 'Identifiant unique du module'},
             'user': {'help_text': 'Utilisateur propriétaire du module'},
-            'reference_battery': {'help_text': 'Référence du battery'},
-            'reference_prise': {'help_text': 'Référence du prise'},
-            'reference_panneau': {'help_text': 'Référence du panneau'},
+            'reference_battery': {'help_text': 'Référence associée à la batterie'},
+            'reference_prise': {'help_text': 'Référence associée à la prise'},
+            'reference_panneau': {'help_text': 'Référence associée au panneau'},
             'active': {'help_text': 'Indique si le module est actif'},
+            'activation_code': {'help_text': "Code d'activation du module"},
             'createdAt': {'read_only': True, 'help_text': 'Date de création'},
+            'activated_at': {'read_only': True, 'help_text': "Date d'activation"},
             'updatedAt': {'read_only': True, 'help_text': 'Date de dernière modification'}
         }
     
@@ -92,34 +96,52 @@ class ModulesDetailSerializer(serializers.ModelSerializer):
 # iot/serializers.py
 
 class IoTModuleTokenSerializer(serializers.Serializer):
-    reference = serializers.CharField()
+    reference_battery = serializers.CharField(required=False)
+    reference_prise = serializers.CharField(required=False)
+    reference_panneau = serializers.CharField(required=False)
 
     def validate(self, attrs):
-        ref = attrs.get("reference")
+        provided_references = {
+            "reference_battery": attrs.get("reference_battery"),
+            "reference_prise": attrs.get("reference_prise"),
+            "reference_panneau": attrs.get("reference_panneau"),
+        }
+
+        filtered_references = {k: v for k, v in provided_references.items() if v}
+
+        if not filtered_references:
+            raise serializers.ValidationError("Au moins une référence doit être fournie.")
+
+        query = Q()
+        for field_name, value in filtered_references.items():
+            query |= Q(**{field_name: value})
 
         module = (
             Modules.objects.select_related("user")
-            .filter(reference=ref, active=True, user__isnull=False)
+            .filter(query, active=True, user__isnull=False)
             .first()
         )
+
         if not module:
-            raise serializers.ValidationError("Référence ou secret invalide.")
+            raise serializers.ValidationError("Référence(s) invalide(s).")
 
         user: ProfilUser = module.user
-        # vérifs cohérentes avec ton CustomTokenObtainPairSerializer
         if not user.status or not user.is_verified:
             raise serializers.ValidationError("Compte utilisateur désactivé ou non vérifié.")
 
         refresh = RefreshToken.for_user(user)
-        # Ajoute des claims utiles pour tracer côté API
-        refresh["module_reference"] = module.reference
+        refresh["module_references"] = {
+            "battery": module.reference_battery if module.reference_battery else None,
+            "prise": module.reference_prise if module.reference_prise else None,
+            "panneau": module.reference_panneau if module.reference_panneau else None,
+        }
         refresh["module_id"] = str(module.id)
         refresh["kind"] = "iot"
 
         data = {
             "refresh": str(refresh),
             "access": str(refresh.access_token),
-            "user_id":user.id,
+            "user_id": user.id,
         }
 
         return data

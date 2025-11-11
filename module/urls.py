@@ -8,7 +8,7 @@ urlpatterns = [
     path("create-module", views.create_module_all),
     path("modules/<str:user_id>/user", views.get_one_module_by_user),
     path("modules/<str:user_id>/user-iot/", views.get_one_module_by_user_for_IOT),
-    path("modules/<str:reference>/reference", views.get_module_by_reference),
+    path("modules/by-reference/<str:ref_type>/<str:ref_value>", views.get_module_by_reference),
     path("modules", views.ModulesAPIView.as_view()),
     path("modules/<str:module_id>", views.ModulesAPIView.as_view()),
     # nouvelles APIs pour Hotspot

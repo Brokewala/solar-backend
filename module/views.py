@@ -29,11 +29,40 @@ from .serializers import ModulesDetailSerializer
 from .serializers import ModulesSerializerIOT
 
 
+def parse_boolean(value):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    return str(value).lower() in ("true", "1", "yes", "on")
+
+
+# Tests rapides (manuels) :
+# - POST /module/modules avec un user puis PUT pour ajouter reference_battery
+#   et vérifier que la réponse n'expose pas d'identifiants hérités.
+# - POST /module/token/ avec au moins une référence pour obtenir un jeton.
+# - GET /module/modules/by-reference/panneau/<valeur> pour récupérer un module ou obtenir un 404.
+
 
 class IoTModuleTokenView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = IoTModuleTokenSerializer
 
+    @swagger_auto_schema(
+        operation_description="Génère un jeton pour un module IoT actif",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'reference_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la batterie du module', nullable=True),
+                'reference_prise': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la prise du module', nullable=True),
+                'reference_panneau': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée au panneau du module', nullable=True),
+            },
+        ),
+        responses={
+            200: openapi.Response('Jeton généré avec succès'),
+            400: openapi.Response('Référence(s) invalide(s) ou compte inactif'),
+        }
+    )
     def post(self, request, *args, **kwargs):
         ser = self.get_serializer(data=request.data)
         ser.is_valid(raise_exception=True)
@@ -68,9 +97,10 @@ def get_all_module(request):
         type=openapi.TYPE_OBJECT,
         required=['user_id', 'puissance_battery', 'voltage_battery', 'marque_battery', 'puissance_panneau', 'voltage_panneau', 'marque_panneau', 'name_prise', 'voltage_prise'],
         properties={
-            'identifiant': openapi.Schema(type=openapi.TYPE_STRING, description='Identifiant du module'),
-            'password': openapi.Schema(type=openapi.TYPE_STRING, description='Mot de passe du module'),
             'user_id': openapi.Schema(type=openapi.TYPE_STRING, description='ID de l\'utilisateur'),
+            'reference_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la batterie du module', nullable=True),
+            'reference_prise': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la prise du module', nullable=True),
+            'reference_panneau': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée au panneau du module', nullable=True),
             'puissance_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Puissance de la batterie'),
             'voltage_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Tension de la batterie'),
             'marque_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Marque de la batterie'),
@@ -89,9 +119,10 @@ def get_all_module(request):
 )
 @api_view(["POST"])
 def create_module_all(request):
-    identifiant = request.data.get("identifiant")
-    password = request.data.get("password")
     user_id = request.data.get("user_id")
+    reference_battery = request.data.get("reference_battery") or None
+    reference_prise = request.data.get("reference_prise") or None
+    reference_panneau = request.data.get("reference_panneau") or None
 
     # battery
     puissance_battery = request.data.get("puissance_battery")
@@ -130,12 +161,10 @@ def create_module_all(request):
     # create module
     module = Modules.objects.create(
         user_id=user_id,
+        reference_battery=reference_battery,
+        reference_prise=reference_prise,
+        reference_panneau=reference_panneau,
     )
-    if identifiant:
-        module.identifiant = identifiant
-    
-    if password:
-        module.password = password
         
     # craete battery
     Battery.objects.create(
@@ -234,12 +263,20 @@ def get_one_module_by_user_for_IOT(request, user_id):
 #  get module by reference
 @swagger_auto_schema(
     method='get',
-    operation_description="Récupère un module par sa référence",
+    operation_description="Récupère un module par type de référence",
     manual_parameters=[
         openapi.Parameter(
-            'reference',
+            'ref_type',
             openapi.IN_PATH,
-            description="Référence du module",
+            description="Type de référence (battery, prise, panneau)",
+            type=openapi.TYPE_STRING,
+            enum=['battery', 'prise', 'panneau'],
+            required=True
+        ),
+        openapi.Parameter(
+            'ref_value',
+            openapi.IN_PATH,
+            description="Valeur de la référence du module",
             type=openapi.TYPE_STRING,
             required=True
         )
@@ -251,16 +288,29 @@ def get_one_module_by_user_for_IOT(request, user_id):
     }
 )
 @api_view(['GET'])
-def get_module_by_reference(request, reference):
-    try:
-        module = Modules.objects.get(reference=reference)
-        serializer = ModulesSerializer(module)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    except Modules.DoesNotExist:
+def get_module_by_reference(request, ref_type, ref_value):
+    reference_field_map = {
+        'battery': 'reference_battery',
+        'prise': 'reference_prise',
+        'panneau': 'reference_panneau',
+    }
+
+    field_name = reference_field_map.get(ref_type)
+    if field_name is None:
+        return Response(
+            {"error": "Type de référence invalide."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    module = Modules.objects.filter(**{field_name: ref_value}).first()
+    if not module:
         return Response(
             {"error": "Module not found"},
             status=status.HTTP_404_NOT_FOUND
         )
+
+    serializer = ModulesSerializer(module)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # Modules APIView
@@ -281,9 +331,11 @@ class ModulesAPIView(APIView):
             type=openapi.TYPE_OBJECT,
             required=['user'],
             properties={
-                'reference': openapi.Schema(type=openapi.TYPE_STRING, description='Référence du module'),
-                'identifiant': openapi.Schema(type=openapi.TYPE_STRING, description='Identifiant du module'),
-                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Mot de passe du module'),
+                'reference_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la batterie du module', nullable=True),
+                'reference_prise': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la prise du module', nullable=True),
+                'reference_panneau': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée au panneau du module', nullable=True),
+                'activation_code': openapi.Schema(type=openapi.TYPE_STRING, description="Code d'activation du module", nullable=True),
+                'active': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Statut actif du module'),
                 'user': openapi.Schema(type=openapi.TYPE_STRING, description='ID de l\'utilisateur')
             }
         ),
@@ -295,40 +347,39 @@ class ModulesAPIView(APIView):
     )
     def post(self, request):
         # gr_code = request.FILES.get("gr_code")
-        reference = request.data.get("reference")
-        identifiant = request.data.get("identifiant")
-        password = request.data.get("password")
+        reference_battery = request.data.get("reference_battery") or None
+        reference_prise = request.data.get("reference_prise") or None
+        reference_panneau = request.data.get("reference_panneau") or None
+        activation_code = request.data.get("activation_code") or None
+        active = request.data.get("active")
         user = request.data.get("user")
+
+        if not user:
+            return Response(
+                {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         if Modules.objects.filter(user__id=user).exists():
             return Response(
                 {"error": "module already existe"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if user is None:
-            return Response(
-                {"error": "All input is request"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         #  user
         user_value = get_object_or_404(ProfilUser, id=user)
 
         # create user
-        module = Modules.objects.create(user=user_value)
-        # save into database
-        module.save()
-        if reference:
-            module.reference = reference
-            module.save()
-            
-        #  password
-        if password:
-            module.password = password
-            module.save()
+        module = Modules.objects.create(
+            user=user_value,
+            reference_battery=reference_battery,
+            reference_prise=reference_prise,
+            reference_panneau=reference_panneau,
+            activation_code=activation_code,
+        )
 
-        #  identifiant
-        if identifiant:
-            module.identifiant = identifiant
-            module.save()
+        active_value = parse_boolean(active)
+        if active_value is not None:
+            module.active = active_value
+            module.save(update_fields=["active"])
 
         #  gr_code
         # if gr_code:
@@ -374,9 +425,10 @@ class ModulesAPIView(APIView):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                'reference': openapi.Schema(type=openapi.TYPE_STRING, description='Référence du module'),
-                'identifiant': openapi.Schema(type=openapi.TYPE_STRING, description='Identifiant du module'),
-                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Mot de passe du module'),
+                'reference_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la batterie du module', nullable=True),
+                'reference_prise': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la prise du module', nullable=True),
+                'reference_panneau': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée au panneau du module', nullable=True),
+                'activation_code': openapi.Schema(type=openapi.TYPE_STRING, description="Code d'activation du module", nullable=True),
                 'user': openapi.Schema(type=openapi.TYPE_STRING, description='ID de l\'utilisateur'),
                 'active': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Statut actif du module')
             }
@@ -391,10 +443,11 @@ class ModulesAPIView(APIView):
         module = self.get_object(module_id=module_id)
         # variables
         # gr_code = request.FILES.get("gr_code")
-        identifiant = request.data.get("identifiant")
-        password = request.data.get("password")
+        reference_battery = request.data.get("reference_battery")
+        reference_prise = request.data.get("reference_prise")
+        reference_panneau = request.data.get("reference_panneau")
+        activation_code = request.data.get("activation_code")
         user = request.data.get("user")
-        reference = request.data.get("reference")
         active = request.data.get("active")
 
         #  gr_code
@@ -402,31 +455,32 @@ class ModulesAPIView(APIView):
         #     module.gr_code = gr_code
         #     module.save()
 
-        #  reference
-        if reference is not None:
-            module.reference = reference
-            module.save()
+        if reference_battery is not None:
+            module.reference_battery = reference_battery or None
 
-        #  identifiant
-        if identifiant is not None:
-            module.identifiant = identifiant
-            module.save()
+        if reference_prise is not None:
+            module.reference_prise = reference_prise or None
 
-        #  password
-        if password is not None:
-            module.password = password
-            module.save()
+        if reference_panneau is not None:
+            module.reference_panneau = reference_panneau or None
+
+        if activation_code is not None:
+            module.activation_code = activation_code or None
 
         #  active status
-        if active is not None:
-            module.active = bool(active)
-            module.save()
+        active_value = parse_boolean(active)
+        if active_value is not None:
+            module.active = active_value
 
         #  user
-        if user:
-            user_value = get_object_or_404(ProfilUser, id=user)
-            module.user = user_value
-            module.save()
+        if user is not None:
+            if user == "":
+                module.user = None
+            else:
+                user_value = get_object_or_404(ProfilUser, id=user)
+                module.user = user_value
+
+        module.save()
 
         serializer = ModulesSerializer(module, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)

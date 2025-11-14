@@ -48,22 +48,6 @@ def parse_boolean(value):
 class IoTModuleTokenView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = IoTModuleTokenSerializer
-
-    @swagger_auto_schema(
-        operation_description="Génère un jeton pour un module IoT actif",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'reference_battery': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la batterie du module', nullable=True),
-                'reference_prise': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée à la prise du module', nullable=True),
-                'reference_panneau': openapi.Schema(type=openapi.TYPE_STRING, description='Référence associée au panneau du module', nullable=True),
-            },
-        ),
-        responses={
-            200: openapi.Response('Jeton généré avec succès'),
-            400: openapi.Response('Référence(s) invalide(s) ou compte inactif'),
-        }
-    )
     def post(self, request, *args, **kwargs):
         ser = self.get_serializer(data=request.data)
         ser.is_valid(raise_exception=True)

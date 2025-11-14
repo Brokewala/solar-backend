@@ -96,15 +96,19 @@ class ModulesDetailSerializer(serializers.ModelSerializer):
 # iot/serializers.py
 
 class IoTModuleTokenSerializer(serializers.Serializer):
-    reference_battery = serializers.CharField(required=False)
-    reference_prise = serializers.CharField(required=False)
-    reference_panneau = serializers.CharField(required=False)
+    reference = serializers.CharField()
+    
+    # reference_battery = serializers.CharField(required=False)
+    # reference_prise = serializers.CharField(required=False)
+    # reference_panneau = serializers.CharField(required=False)
 
     def validate(self, attrs):
+        ref = attrs.get("reference")
+        
         provided_references = {
-            "reference_battery": attrs.get("reference_battery"),
-            "reference_prise": attrs.get("reference_prise"),
-            "reference_panneau": attrs.get("reference_panneau"),
+            "reference_battery": ref,
+            "reference_prise": ref,
+            "reference_panneau": ref,
         }
 
         filtered_references = {k: v for k, v in provided_references.items() if v}

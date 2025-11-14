@@ -11,6 +11,7 @@ from rest_framework.decorators import permission_classes
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.db.models import Q
 
 # models
 from .models import Modules
@@ -263,20 +264,12 @@ def get_one_module_by_user_for_IOT(request, user_id):
 #  get module by reference
 @swagger_auto_schema(
     method='get',
-    operation_description="Récupère un module par type de référence",
+    operation_description="Récupère un module par sa référence",
     manual_parameters=[
         openapi.Parameter(
-            'ref_type',
+            'reference',
             openapi.IN_PATH,
-            description="Type de référence (battery, prise, panneau)",
-            type=openapi.TYPE_STRING,
-            enum=['battery', 'prise', 'panneau'],
-            required=True
-        ),
-        openapi.Parameter(
-            'ref_value',
-            openapi.IN_PATH,
-            description="Valeur de la référence du module",
+            description="Référence du module",
             type=openapi.TYPE_STRING,
             required=True
         )
@@ -288,27 +281,28 @@ def get_one_module_by_user_for_IOT(request, user_id):
     }
 )
 @api_view(['GET'])
-def get_module_by_reference(request, ref_type, ref_value):
-    reference_field_map = {
-        'battery': 'reference_battery',
-        'prise': 'reference_prise',
-        'panneau': 'reference_panneau',
-    }
+def get_module_by_reference(request, reference):
+    module = None
 
-    field_name = reference_field_map.get(ref_type)
-    if field_name is None:
-        return Response(
-            {"error": "Type de référence invalide."},
-            status=status.HTTP_404_NOT_FOUND
-        )
+    # 1. Vérifier reference_battery
+    module = Modules.objects.filter(reference_battery=reference).first()
 
-    module = Modules.objects.filter(**{field_name: ref_value}).first()
+    # 2. Si rien trouvé, vérifier reference_panneau
+    if not module:
+        module = Modules.objects.filter(reference_panneau=reference).first()
+
+    # 3. Si toujours rien, vérifier reference_prise
+    if not module:
+        module = Modules.objects.filter(reference_prise=reference).first()
+
+    # 4. Si aucun module ne correspond
     if not module:
         return Response(
             {"error": "Module not found"},
             status=status.HTTP_404_NOT_FOUND
         )
 
+    # Retourner un seul objet (many=False par défaut)
     serializer = ModulesSerializer(module)
     return Response(serializer.data, status=status.HTTP_200_OK)
 

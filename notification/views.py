@@ -653,3 +653,16 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
     if not user_id :  # Si l'utilisateur n'est pas défini, ne pas continuer
         return
     send_websocket_notification(user_id , payload)
+
+
+# =====================messgea from IOT =====================================
+@api_view(["POST"])
+def message_from_IOT(request):
+    user_id = request.data.get("user_id")
+    # name = request.data.get("name")
+    name = "Message From Module IOT"
+    message = request.data.get("message")
+    
+    data_notif = create_notification_serializer(user_id,name,message)
+    send_websocket_notification(user_id, data_notif)
+    return Response({"message":"notification envoyer"}, status=status.HTTP_200_OK)

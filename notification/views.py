@@ -664,4 +664,4 @@ def message_from_IOT(request):
     
     data_notif = create_notification_serializer(user_id,name,message)
     send_websocket_notification(user_id, data_notif)
-    return Response({"message":"notification envoyer"}, status=status.HTTP_200_OK)
+    return Response(data_notif, status=status.HTTP_200_OK)

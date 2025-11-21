@@ -659,8 +659,7 @@ def notify_panneau_send_reel_data(sender, instance, created, **kwargs):
 @api_view(["POST"])
 def message_from_IOT(request):
     user_id = request.data.get("user_id")
-    # name = request.data.get("name")
-    name = "Message From Module IOT"
+    name = "IOT"
     message = request.data.get("message")
     
     data_notif = create_notification_serializer(user_id,name,message)

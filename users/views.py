@@ -133,6 +133,8 @@ def decode_token(request):
         404: openapi.Response('Utilisateur non trouvé')
     }
 )
+
+
 @api_view(["POST"])
 def user_by_token(request):
     # if is none

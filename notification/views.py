@@ -665,3 +665,18 @@ def message_from_IOT(request):
     data_notif = create_notification_serializer(user_id,name,message)
     send_websocket_notification(user_id, data_notif)
     return Response(data_notif, status=status.HTTP_200_OK)
+
+
+
+# delete notificaiton il y a 3 jours
+@receiver(post_save, sender=Notification)
+def clean_old_notifications(sender, instance, created, **kwargs):
+    """
+    À chaque création de Notification, on supprime toutes
+    les notifications de plus de 3 jours.
+    """
+    if not created:
+        return  # on ne fait rien sur update
+
+    three_days_ago = timezone.now() - timedelta(days=3)
+    Notification.objects.filter(createdAt__lt=three_days_ago).delete()

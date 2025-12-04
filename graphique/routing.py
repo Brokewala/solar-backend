@@ -1,6 +1,6 @@
 # realtime/routing.py
 from django.urls import re_path
-from consumers import ModuleDataConsumer
+from .consumers import ModuleDataConsumer
 
 websocket_urlpatterns = [
 

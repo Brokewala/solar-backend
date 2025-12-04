@@ -84,7 +84,6 @@ INSTALLED_APPS = [
     'subscription',
     'notification',
     'stats',
-    "graphique",
 
 ]
 

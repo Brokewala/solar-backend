@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "django_filters",
+    "graphique.apps.GraphiqueConfig",
     'users',
     'module',
     'battery',
@@ -83,6 +84,8 @@ INSTALLED_APPS = [
     'subscription',
     'notification',
     'stats',
+    "graphique",
+
 ]
 
 REST_FRAMEWORK = {

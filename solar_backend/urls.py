@@ -49,6 +49,7 @@ urlpatterns = [
     path('api/solar/subscription/', include("subscription.urls")),
     path('api/solar/notification/', include("notification.urls")),
     path('api/solar/stats/', include("stats.urls")),
+    path('api/solar/graphique/', include("graphique.urls")),
 ]
 
 

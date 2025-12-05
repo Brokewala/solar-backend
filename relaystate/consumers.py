@@ -37,6 +37,8 @@ class RelayStateConsumer(AsyncWebsocketConsumer):
         """
         if not text_data:
             return
+        
+        print("===========text_data============",text_data)
 
         try:
             payload = json.loads(text_data)

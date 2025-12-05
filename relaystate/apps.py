@@ -1,9 +1,9 @@
 from django.apps import AppConfig
 
 
-class NotificationConfig(AppConfig):
+class RelaystateConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'notification'
-
+    name = 'relaystate'
+    
     def ready(self):
-        import notification.signals 
+        import relaystate.signals 

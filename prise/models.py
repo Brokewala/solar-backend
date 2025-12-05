@@ -61,7 +61,7 @@ class PriseRelaiState(models.Model):
     id = models.CharField(
         primary_key=True, default=uuid.uuid4, editable=False, max_length=36
     )
-    prise = models.ForeignKey(
+    prise = models.OneToOneField(
         Prise,
         on_delete=models.CASCADE,
         related_name="prise_relai_state",

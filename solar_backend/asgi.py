@@ -9,9 +9,10 @@ from django.core.asgi import get_asgi_application
 # url patterne
 from notification.routing import websocket_urlpatterns as notifications_urlpatterns
 from graphique.routing import websocket_urlpatterns as graphique_urlpatterns
+from relaystate.routing import websocket_urlpatterns as relaystate_urlpatterns
 
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'solar_backend.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "solar_backend.settings")
 
 django_asgi_app = get_asgi_application()
 
@@ -21,7 +22,9 @@ application = ProtocolTypeRouter(
         "websocket": AllowedHostsOriginValidator(
             AuthMiddlewareStack(
                 URLRouter(
-                    notifications_urlpatterns + graphique_urlpatterns
+                    notifications_urlpatterns
+                    + graphique_urlpatterns
+                    + relaystate_urlpatterns
                 )
             )
         ),

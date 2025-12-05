@@ -50,6 +50,7 @@ urlpatterns = [
     path('api/solar/notification/', include("notification.urls")),
     path('api/solar/stats/', include("stats.urls")),
     path('api/solar/graphique/', include("graphique.urls")),
+    path('api/solar/relaystate/', include("relaystate.urls")),
 ]
 
 

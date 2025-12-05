@@ -63,7 +63,7 @@ class PanneauRelaiState(models.Model):
     id = models.CharField(
         primary_key=True, default=uuid.uuid4, editable=False, max_length=36
     )
-    panneau = models.ForeignKey(
+    panneau = models.OneToOneField(
         Panneau,
         on_delete=models.CASCADE,
         related_name="panneau_relai_state",

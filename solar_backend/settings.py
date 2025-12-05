@@ -73,7 +73,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "django_filters",
-    "graphique.apps.GraphiqueConfig",
     'users',
     'module',
     'battery',
@@ -82,8 +81,10 @@ INSTALLED_APPS = [
     'rating',
     'report',
     'subscription',
-    'notification',
     'stats',
+    "notification.apps.NotificationConfig",
+    "graphique.apps.GraphiqueConfig",
+    "relaystate.apps.RelaystateConfig"
 
 ]
 
@@ -249,8 +250,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
     "http://localhost:5173",
     "exp://sttlt3y-anonymous-8081.exp.direct",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:8001",
     "http://localhost:8081",
     "http://192.168.x.x:8081",
     "http://172.20.10.2:8000",

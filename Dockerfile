@@ -21,7 +21,12 @@ RUN pip install -r requirements.txt
 COPY . /app/
 
 # Copie le script d'entrée dans le conteneur
-COPY entrypoint.sh /app/
+# COPY entrypoint.sh /app/
+# Copier entrypoint explicitement, convertir CRLF puis rendre exécutable
+COPY entrypoint.sh /app/entrypoint.sh
+RUN apt-get update && apt-get install -y dos2unix \
+ && dos2unix /app/entrypoint.sh \
+ && chmod +x /app/entrypoint.sh
 
 # Rendre le script d'entrée exécutable
 RUN chmod +x /app/entrypoint.sh

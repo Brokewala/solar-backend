@@ -30,6 +30,8 @@ from solar_backend.timezone_utils import (
 
 # Notif
 from .models import Notification
+from .services import create_or_replace_notification
+
 from users.models import ProfilUser
 
 
@@ -66,13 +68,8 @@ TANA = ZoneInfo("Indian/Antananarivo")  # TZ unique du projet
 
 
 def create_notification_serializer(user_id,name,message):
-    notif = Notification.objects.create(
-        user_id=user_id,
-        fonction=name,
-        message=message,
-    )
-    serializer = NotificationSerializer(notif,many=False).data
-    return serializer
+    data_notif = create_or_replace_notification(user_id, name, message)
+    return data_notif
 
 
 def send_websocket_notification(user_id, data_notif):
@@ -99,15 +96,11 @@ def  create_notification(request):
     user = get_object_or_404(ProfilUser, id=user_id)
 
 
-    notif = Notification.objects.create(
-        user=user,
-        fonction=fonction,
-        message=message,
-    )
-    serializer = NotificationSerializer(notif,many=False)
+    serializer_data = create_or_replace_notification(user.id, fonction, message)
+
     # notification to socket
-    send_websocket_notification(user_id, serializer.data)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    send_websocket_notification(user_id, serializer_data)
+    return Response(serializer_data, status=status.HTTP_200_OK)
     
     
 @swagger_auto_schema(

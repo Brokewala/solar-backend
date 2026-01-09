@@ -730,22 +730,22 @@ def get_production_panneau_annuelle(request,module_id):
 @api_view(["GET"])
 def get_panneau_annual_breakdown(request, module_id):
     """
-    GET /api/panneau/<module_id>/annual-breakdown?year=2025
+    GET /api/panneau/<module_id>/production-annuelle?year=2025
 
     Réponse:
     {
       "year": 2025,
       "annual": {
-        "tension":    {"average": ...},
-        "puissance":  {"average": ...},
-        "courant":    {"average": ...},
-        "production": {"average": ..., "total": ...}
+        "tension":    { "total": ..., "average": ... },
+        "puissance":  { "total": ..., "average": ... },
+        "courant":    { "total": ..., "average": ... },
+        "production": { "total": ..., "average": ... }
       },
       "monthly": {
-        "tension":   [v1..v12],
-        "puissance": [v1..v12],
-        "courant":   [v1..v12],
-        "production":[v1..v12]
+        "tension":    [v1..v12],
+        "puissance":  [v1..v12],
+        "courant":    [v1..v12],
+        "production": [v1..v12]
       }
     }
     """
@@ -765,43 +765,24 @@ def get_panneau_annual_breakdown(request, module_id):
     # 3) Query de base (année)
     qs = PanneauData.objects.filter(panneau=panneau, createdAt__year=year)
 
-    # 4) Sommes et compte annuels (un seul aller-retour DB)
-    agg = qs.aggregate(
-        sum_tension=Coalesce(Sum(Cast("tension", FloatField())), 0.0),
-        count_tension=Count(
-            "id", filter=Q(tension__isnull=False) & ~Q(tension="")
-        ),
-        sum_puissance=Coalesce(Sum(Cast("puissance", FloatField())), 0.0),
-        count_puissance=Count(
-            "id", filter=Q(puissance__isnull=False) & ~Q(puissance="")
-        ),
-        sum_courant=Coalesce(Sum(Cast("courant", FloatField())), 0.0),
-        count_courant=Count(
-            "id", filter=Q(courant__isnull=False) & ~Q(courant="")
-        ),
-        sum_production=Coalesce(Sum(Cast("production", FloatField())), 0.0),
-        count_production=Count(
-            "id", filter=Q(production__isnull=False) & ~Q(production="")
-        ),
+    # 4) Sommes et compte annuels pour toutes les métriques
+    metrics = ["tension", "puissance", "courant", "production"]
+    
+    annual_stats = qs.aggregate(
+        **{f"sum_{m}": Coalesce(Sum(Cast(m, FloatField())), 0.0) for m in metrics},
+        **{f"count_{m}": Count("id", filter=Q(**{f"{m}__isnull": False}) & ~Q(**{m: ""})) for m in metrics},
     )
 
-    sum_tension = float(agg.get("sum_tension", 0.0) or 0.0)
-    count_tension = agg.get("count_tension") or 0
-    avg_tension = sum_tension / count_tension if count_tension else 0.0
-
-    sum_puissance = float(agg.get("sum_puissance", 0.0) or 0.0)
-    count_puissance = agg.get("count_puissance") or 0
-    avg_puissance = sum_puissance / count_puissance if count_puissance else 0.0
-
-    sum_courant = float(agg.get("sum_courant", 0.0) or 0.0)
-    count_courant = agg.get("count_courant") or 0
-    avg_courant = sum_courant / count_courant if count_courant else 0.0
-
-    sum_production = float(agg.get("sum_production", 0.0) or 0.0)
-    count_production = agg.get("count_production") or 0
-    avg_production = (
-        sum_production / count_production if count_production else 0.0
-    )
+    # Construire l'objet annual avec total et average pour chaque métrique
+    annual = {}
+    for metric in metrics:
+        total = float(annual_stats.get(f"sum_{metric}", 0.0) or 0.0)
+        count = annual_stats.get(f"count_{metric}") or 0
+        average = total / count if count > 0 else 0.0
+        annual[metric] = {
+            "total": total,
+            "average": average,
+        }
 
     # 5) Décomposition mensuelle (un seul aller-retour DB)
     monthly_qs = (
@@ -833,15 +814,7 @@ def get_panneau_annual_breakdown(request, module_id):
 
     data = {
         "year": year,
-        "annual": {
-            "tension": {"average": float(avg_tension)},
-            "puissance": {"average": float(avg_puissance)},
-            "courant": {"average": float(avg_courant)},
-            "production": {
-                "average": float(avg_production),
-                "total": float(sum_production),
-            },
-        },
+        "annual": annual,
         "monthly": {
             "tension":    m_tension,
             "puissance":  m_puissance,

@@ -672,7 +672,8 @@ class WeeklyByMonthBaseView(APIView):
             week_min = float(min(week_values)) if week_values else 0.0
             week_max = float(max(week_values)) if week_values else 0.0
 
-            if requested_field == "production":
+            # Show Total/Average for production and energy fields
+            if requested_field in ("production", "energy", "consomation", "consommation"):
                 week_payload["totals"] = {"total": week_sum, "avg": week_avg}
             else:
                 week_payload["totals"] = {"min": week_min, "max": week_max}
@@ -803,13 +804,14 @@ class BaseDailyAPIView(APIView):
         min_value = float(min(numeric_values)) if numeric_values else 0.0
         max_value = float(max(numeric_values)) if numeric_values else 0.0
 
-        if field == "production":
-            stats_block = {"total": total, "avg": avg, "count": count}
+        # Show Total/Average for production, energy, and consumption fields
+        if field in ("production", "energy", "consomation", "consommation"):
+            stats_block = {"total": total, "average": avg, "count": count}
         else:
             stats_block = {
                 "min": min_value,
                 "max": max_value,
-                "avg": avg,
+                "average": avg,
                 "count": count,
             }
 

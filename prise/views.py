@@ -767,16 +767,16 @@ def get_consommation_prise_annuelle(request,module_id):
 @api_view(["GET"])
 def get_prise_annual_breakdown(request, module_id):
     """
-    GET /api/prise/<module_id>/annual-breakdown?year=2025
+    GET /api/prise/<module_id>/consommation-annuelle?year=2025
 
     Réponse:
     {
       "year": 2025,
-      "annual_totals": {
-        "tension": ...,
-        "puissance": ...,
-        "courant": ...,
-        "consomation": ...
+      "annual": {
+        "tension":     { "total": ..., "average": ... },
+        "puissance":   { "total": ..., "average": ... },
+        "courant":     { "total": ..., "average": ... },
+        "consomation": { "total": ..., "average": ... }
       },
       "monthly": {
         "tension":     [v1..v12],
@@ -802,25 +802,24 @@ def get_prise_annual_breakdown(request, module_id):
     # Filtrer l'année
     qs = PriseData.objects.filter(prise=prise, createdAt__year=year)
 
-    # Sommes annuelles (un seul aller-retour BDD)
-    agg = qs.aggregate(
-        sum_tension     = Coalesce(Sum(Cast("tension",     FloatField())), 0.0),
-        cnt_tension     = Count("id", filter=Q(tension__isnull=False) & ~Q(tension="")),
-        sum_puissance   = Coalesce(Sum(Cast("puissance",   FloatField())), 0.0),
-        cnt_puissance   = Count("id", filter=Q(puissance__isnull=False) & ~Q(puissance="")),
-        sum_courant     = Coalesce(Sum(Cast("courant",     FloatField())), 0.0),
-        cnt_courant     = Count("id", filter=Q(courant__isnull=False) & ~Q(courant="")),
-        sum_consomation = Coalesce(Sum(Cast("consomation", FloatField())), 0.0),
-        cnt_consomation = Count("id", filter=Q(consomation__isnull=False) & ~Q(consomation="")),
+    # Statistiques annuelles (total et moyenne) pour toutes les métriques
+    metrics = ["tension", "puissance", "courant", "consomation"]
+    
+    annual_stats = qs.aggregate(
+        **{f"sum_{m}": Coalesce(Sum(Cast(m, FloatField())), 0.0) for m in metrics},
+        **{f"count_{m}": Count("id", filter=Q(**{f"{m}__isnull": False}) & ~Q(**{m: ""})) for m in metrics},
     )
 
-    def avg(sum_val, cnt):
-        return float(sum_val) / cnt if cnt else 0.0
-
-    avg_tension = avg(agg["sum_tension"], agg["cnt_tension"] or 0)
-    avg_puissance = avg(agg["sum_puissance"], agg["cnt_puissance"] or 0)
-    avg_courant = avg(agg["sum_courant"], agg["cnt_courant"] or 0)
-    avg_consomation = avg(agg["sum_consomation"], agg["cnt_consomation"] or 0)
+    # Construire l'objet annual avec total et average pour chaque métrique
+    annual = {}
+    for metric in metrics:
+        total = float(annual_stats.get(f"sum_{metric}", 0.0) or 0.0)
+        count = annual_stats.get(f"count_{metric}") or 0
+        average = total / count if count > 0 else 0.0
+        annual[metric] = {
+            "total": total,
+            "average": average,
+        }
 
     # Décomposition mensuelle (un seul aller-retour BDD)
     monthly_qs = (
@@ -849,18 +848,7 @@ def get_prise_annual_breakdown(request, module_id):
 
     data = {
         "year": year,
-        "annual_totals": {
-            "tension":     float(agg["sum_tension"]),
-            "puissance":   float(agg["sum_puissance"]),
-            "courant":     float(agg["sum_courant"]),
-            "consomation": float(agg["sum_consomation"]),
-        },
-        "annual": {
-            "tension":     {"average": avg_tension},
-            "puissance":   {"average": avg_puissance},
-            "courant":     {"average": avg_courant},
-            "consomation": {"average": avg_consomation, "total": float(agg["sum_consomation"])},
-        },
+        "annual": annual,
         "monthly": {
             "tension":     m_tension,
             "puissance":   m_puissance,

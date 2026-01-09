@@ -674,7 +674,7 @@ class WeeklyByMonthBaseView(APIView):
 
             # Show Total/Average for production and energy fields
             if requested_field in ("production", "energy", "consomation", "consommation"):
-                week_payload["totals"] = {"total": week_sum, "avg": week_avg}
+                week_payload["totals"] = {"total": week_sum, "average": week_avg}
             else:
                 week_payload["totals"] = {"min": week_min, "max": week_max}
 

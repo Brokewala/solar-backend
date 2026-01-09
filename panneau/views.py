@@ -773,16 +773,7 @@ def get_panneau_annual_breakdown(request, module_id):
         **{f"count_{m}": Count("id", filter=Q(**{f"{m}__isnull": False}) & ~Q(**{m: ""})) for m in metrics},
     )
 
-    # Construire l'objet annual avec total et average pour chaque métrique
-    annual = {}
-    for metric in metrics:
-        total = float(annual_stats.get(f"sum_{metric}", 0.0) or 0.0)
-        count = annual_stats.get(f"count_{metric}") or 0
-        average = total / count if count > 0 else 0.0
-        annual[metric] = {
-            "total": total,
-            "average": average,
-        }
+
 
     # 5) Décomposition mensuelle (un seul aller-retour DB)
     monthly_qs = (
@@ -798,11 +789,11 @@ def get_panneau_annual_breakdown(request, module_id):
     )
 
     # 6) Initialiser 12 mois à 0.0 puis remplir
-    months_len = 12
-    m_tension   = [0.0] * months_len
-    m_puissance = [0.0] * months_len
-    m_courant   = [0.0] * months_len
-    m_production= [0.0] * months_len
+    def zeros12(): return [0.0] * 12
+    m_tension, m_puissance, m_courant, m_production = zeros12(), zeros12(), zeros12(), zeros12()
+
+    # Variables pour le calcul de moyenne mensuelle (actif)
+    active_months_count = {m: 0 for m in metrics}
 
     for row in monthly_qs:
         idx = (row["month"] or 0) - 1
@@ -811,6 +802,39 @@ def get_panneau_annual_breakdown(request, module_id):
             m_puissance[idx]  = float(row["m_puissance"] or 0.0)
             m_courant[idx]    = float(row["m_courant"] or 0.0)
             m_production[idx] = float(row["m_production"] or 0.0)
+            
+            # Count active months for each metric if value > 0
+            if m_tension[idx] > 0: active_months_count["tension"] += 1
+            if m_puissance[idx] > 0: active_months_count["puissance"] += 1
+            if m_courant[idx] > 0: active_months_count["courant"] += 1
+            if m_production[idx] > 0: active_months_count["production"] += 1
+
+    # Construire l'objet annual
+    # Pour Tension/Courant/Puissance: on garde la moyenne de la BDD (plus précise pour des valeurs instantanées)
+    # Pour Production: on veut Total (Somme) et Moyenne (Total / 12 ou nombre de mois)
+    
+    annual = {}
+    for metric in metrics:
+        total_db = float(annual_stats.get(f"sum_{metric}", 0.0) or 0.0)
+        count_db = annual_stats.get(f"count_{metric}") or 0
+        avg_db = total_db / count_db if count_db > 0 else 0.0
+        
+        if metric == "production":
+             # Total production is fine from DB Sum
+             # Average should be Total / 12 (Monthly Average)
+             # User requested "kWh/month"
+             avg_val = total_db / 12.0 # Fixed to 12 months for Annual Average context
+             annual[metric] = {
+                 "total": total_db,
+                 "average": avg_val
+             }
+        else:
+             # For others, keep DB Average (e.g. Voltage)
+             annual[metric] = {
+                 "total": total_db,
+                 "average": avg_db # This is Avg per data point
+             }
+
 
     data = {
         "year": year,

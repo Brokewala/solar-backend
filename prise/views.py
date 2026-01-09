@@ -810,16 +810,6 @@ def get_prise_annual_breakdown(request, module_id):
         **{f"count_{m}": Count("id", filter=Q(**{f"{m}__isnull": False}) & ~Q(**{m: ""})) for m in metrics},
     )
 
-    # Construire l'objet annual avec total et average pour chaque métrique
-    annual = {}
-    for metric in metrics:
-        total = float(annual_stats.get(f"sum_{metric}", 0.0) or 0.0)
-        count = annual_stats.get(f"count_{metric}") or 0
-        average = total / count if count > 0 else 0.0
-        annual[metric] = {
-            "total": total,
-            "average": average,
-        }
 
     # Décomposition mensuelle (un seul aller-retour BDD)
     monthly_qs = (
@@ -845,6 +835,27 @@ def get_prise_annual_breakdown(request, module_id):
             m_puissance[idx]   = float(row["m_puissance"] or 0.0)
             m_courant[idx]     = float(row["m_courant"] or 0.0)
             m_consomation[idx] = float(row["m_consomation"] or 0.0)
+
+    # Construire l'objet annual
+    annual = {}
+    for metric in metrics:
+        total_db = float(annual_stats.get(f"sum_{metric}", 0.0) or 0.0)
+        count_db = annual_stats.get(f"count_{metric}") or 0
+        avg_db = total_db / count_db if count_db > 0 else 0.0
+        
+        if metric == "consomation" or metric == "consommation":
+             # Average should be Total / 12 (Monthly Average)
+             avg_val = total_db / 12.0
+             annual[metric] = {
+                 "total": total_db,
+                 "average": avg_val
+             }
+        else:
+             annual[metric] = {
+                 "total": total_db,
+                 "average": avg_db
+             }
+
 
     data = {
         "year": year,

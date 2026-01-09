@@ -806,7 +806,10 @@ class BaseDailyAPIView(APIView):
 
         # Show Total/Average for production, energy, and consumption fields
         if field in ("production", "energy", "consomation", "consommation"):
-            stats_block = {"total": total, "average": avg, "count": count}
+            # Pour la vue daily, on veut une moyenne horaire (Total / 24) comme demandé
+            # average = Sum / Count (points) est statistiquement vrai, mais l'utilisateur veut 'kWh/h'
+            hourly_avg = total / 24.0
+            stats_block = {"total": total, "average": hourly_avg, "count": count}
         else:
             stats_block = {
                 "min": min_value,

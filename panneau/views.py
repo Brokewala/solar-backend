@@ -1360,7 +1360,7 @@ def get_panneau_statistics(request, module_id):
                     "current": values[-1],
                     "min": min(values),
                     "max": max(values),
-                    "avg": round(sum(values) / len(values), 2),
+                    "avg": round(sum(values) / 24.0, 2) if metric == 'production' else round(sum(values) / len(values), 2),
                     "total": round(sum(values), 2) if metric == 'production' else None
                 }
         

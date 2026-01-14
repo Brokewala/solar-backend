@@ -279,7 +279,7 @@ def notify_courant_status(sender, instance, created, **kwargs):
         message = "Déchargement de la batterie."
 
     if message:
-        data_notif = create_notification_serializer(user_id,"Courant", message)
+        data_notif = create_notification_serializer(user_id,"Batterie_Courant", message)
         send_websocket_notification(user_id, data_notif)
 
 # Puissance
@@ -313,7 +313,7 @@ def notify_puissance_status(sender, instance, created, **kwargs):
                 message = "Pourquoi ne pas utiliser votre batterie ? Nous sommes là pour vous aider à mieux le gérer."
 
     if message:
-        data_notif = create_notification_serializer(user_id,"Puissance", message)
+        data_notif = create_notification_serializer(user_id,"Batterie_Puissance", message)
         send_websocket_notification(user_id, data_notif)
 
 # Consommation / Capacité
@@ -347,7 +347,7 @@ def notify_consumption_status(sender, instance, created, **kwargs):
         message = f"Aujourd'hui, vous avez consommé un total de {consumption} Ah."
 
     if message:
-        data_notif = create_notification_serializer(user_id,"Consommation", message)
+        data_notif = create_notification_serializer(user_id,"Batterie_Consommation", message)
         send_websocket_notification(user_id, data_notif)
 
 # notification for new battery data
@@ -409,7 +409,7 @@ def notify_new_BatteryData(sender, instance, created, **kwargs):
             
  # Si un message est défini, envoyer la notification
     if message:
-        data_notif = create_notification_serializer(user_id, "Tension", message)
+        data_notif = create_notification_serializer(user_id, "Batterie_Tension", message)
         send_websocket_notification(user_id, data_notif)
 
 
@@ -467,35 +467,35 @@ def notify_prise_data(sender, instance, created, **kwargs):
     if instance.tension:
         tension = float(instance.tension)
         if tension == 0:
-            messages.append("Aucun appareil détecté. Il semble que la prise soit déconnectée ou l'interrupteur soit éteint. Veuillez vérifier vos branchements ou allumer l'interrupteur.")
+            messages.append(("Prise_Tension", "Aucun appareil détecté. Il semble que la prise soit déconnectée ou l'interrupteur soit éteint. Veuillez vérifier vos branchements ou allumer l'interrupteur."))
         elif tension > 0 and tension < 200:
-            messages.append("Attention ! Une baisse de tension a été détectée. Il est recommandé d'installer un onduleur pour protéger votre matériel.")
+            messages.append(("Prise_Tension", "Attention ! Une baisse de tension a été détectée. Il est recommandé d'installer un onduleur pour protéger votre matériel."))
         elif tension >= 200 and tension < 230:
-            messages.append("Un appareil a été détecté et branché avec succès. Vous pouvez désormais planifier son utilisation via les paramètres de planification.")
+            messages.append(("Prise_Tension", "Un appareil a été détecté et branché avec succès. Vous pouvez désormais planifier son utilisation via les paramètres de planification."))
         elif tension >= 230:
-            messages.append("Attention ! Une surtension a été détectée. Il est recommandé d'installer un onduleur pour éviter d'endommager votre matériel.")
+            messages.append(("Prise_Tension", "Attention ! Une surtension a été détectée. Il est recommandé d'installer un onduleur pour éviter d'endommager votre matériel."))
 
     # Vérification du courant
     if instance.courant:
         courant = float(instance.courant)
         if courant == 0:
-            messages.append("Aucun appareil détecté sur cette source. Veuillez vérifier si votre matériel est correctement branché.")
+            messages.append(("Prise_Courant", "Aucun appareil détecté sur cette source. Veuillez vérifier si votre matériel est correctement branché."))
         elif courant > 0:
-            messages.append("Un appareil a été détecté et le branchement est réussi.")
+            messages.append(("Prise_Courant", "Un appareil a été détecté et le branchement est réussi."))
 
     # Vérification de la puissance
     if instance.puissance:
         puissance = float(instance.puissance)
-        messages.append(f"Votre appareil consomme environ {puissance} kW.")
+        messages.append(("Prise_Puissance", f"Votre appareil consomme environ {puissance} kW."))
 
     # Vérification de la consommation
     if instance.consomation:
         consomation = float(instance.consomation)
-        messages.append(f"Votre appareil consomme {consomation} kWh d'énergie.")
+        messages.append(("Prise_Consommation", f"Votre appareil consomme {consomation} kWh d'énergie."))
 
     # Ajout des notifications au système
-    for message in messages:
-        data_notif = create_notification_serializer(user_id, "Prise", message)
+    for func_name, message in messages:
+        data_notif = create_notification_serializer(user_id, func_name, message)
         send_websocket_notification(user_id, data_notif)
 
 
@@ -562,18 +562,18 @@ def notify_panneau_data(sender, instance, created, **kwargs):
 
         if production == 0:
             messages.append(
-                "Attention : Aucune production solaire détectée en plein jour. Vérifiez votre installation pour une éventuelle panne ou un problème majeur."
+                ("Panneau_Production", "Attention : Aucune production solaire détectée en plein jour. Vérifiez votre installation pour une éventuelle panne ou un problème majeur.")
             )
         elif production < seuil_critique:
             messages.append(
-                "Une baisse de production des panneaux solaires est observée au cours de la journée. Cela peut être dû à un ensoleillement insuffisant ou à l'accumulation de particules de poussière réduisant leur efficacité."
+                ("Panneau_Production", "Une baisse de production des panneaux solaires est observée au cours de la journée. Cela peut être dû à un ensoleillement insuffisant ou à l'accumulation de particules de poussière réduisant leur efficacité.")
             )
 
     # Problèmes de connectivité
     if instance.updatedAt and instance.createdAt:
         delta_seconds = (instance.updatedAt - instance.createdAt).total_seconds()
         if delta_seconds > 3600:
-            messages.append("Perte de communication détectée (>1h) avec le panneau.")
+            messages.append(("Panneau_Connectivity", "Perte de communication détectée (>1h) avec le panneau."))
  
 
     # Température inhabituelle (si un capteur de température est intégré)
@@ -581,7 +581,7 @@ def notify_panneau_data(sender, instance, created, **kwargs):
         temperature = float(instance.temperature)
         if temperature >= 70:
             messages.append(
-                "Attention : Température inhabituelle détectée sur le panneau solaire, risque de points chauds. Vérifiez rapidement pour éviter tout dommage."
+                ("Panneau_Temperature", "Attention : Température inhabituelle détectée sur le panneau solaire, risque de points chauds. Vérifiez rapidement pour éviter tout dommage.")
             )
 
     # Accumulation de poussière ou saleté (si un capteur est intégré)
@@ -589,13 +589,13 @@ def notify_panneau_data(sender, instance, created, **kwargs):
         dust_level = float(instance.dust_level)
         if dust_level > 70:  # Exemple de seuil
             messages.append(
-                "Attention : Une accumulation importante de poussière, de saleté ou de neige a été détectée sur le panneau solaire. Nettoyez pour optimiser la production."
+                ("Panneau_Dust", "Attention : Une accumulation importante de poussière, de saleté ou de neige a été détectée sur le panneau solaire. Nettoyez pour optimiser la production.")
             )
 
     # Envoi des notifications    
-    for msg in messages:        
+    for func_name, msg in messages:        
         try:
-            data_notif = create_notification_serializer(user_id, "Panneau", msg)
+            data_notif = create_notification_serializer(user_id, func_name, msg)
         except Exception:
             data_notif = None
 

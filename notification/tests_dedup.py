@@ -39,3 +39,25 @@ class NotificationDeduplicationTest(TestCase):
         create_or_replace_notification(self.user.id, "FuncA", "Message")
         create_or_replace_notification(self.user.id, "FuncB", "Message")
         self.assertEqual(Notification.objects.count(), 2)
+
+    def test_deduplication_prise_loop_scenario(self):
+        # Simulate Prise loop: Tension, Courant, Puissance
+        # 1. First pass
+        create_or_replace_notification(self.user.id, "Prise_Tension", "Message A")
+        create_or_replace_notification(self.user.id, "Prise_Courant", "Message A") # Same message, diff function
+        create_or_replace_notification(self.user.id, "Prise_Puissance", "Message A")
+        
+        self.assertEqual(Notification.objects.count(), 3)
+        
+        # 2. Second pass - Same messages
+        result_tension = create_or_replace_notification(self.user.id, "Prise_Tension", "Message A") # Duplicate for Prise_Tension
+        result_courant = create_or_replace_notification(self.user.id, "Prise_Courant", "Message A") # Duplicate for Prise_Courant
+        
+        self.assertIsNone(result_tension)
+        self.assertIsNone(result_courant)
+        self.assertEqual(Notification.objects.count(), 3)
+        
+        # 3. New message for Prise_Tension
+        result_new = create_or_replace_notification(self.user.id, "Prise_Tension", "Message B")
+        self.assertIsNotNone(result_new)
+        self.assertEqual(Notification.objects.count(), 4)

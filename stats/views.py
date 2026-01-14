@@ -796,20 +796,20 @@ class BaseDailyAPIView(APIView):
             if numeric_values:
                 total = float(base_stats.get("total", 0.0))
                 count = int(base_stats.get("count", 0))
+                db_average = float(base_stats.get("average", 0.0))
             else:
                 total = 0.0
                 count = 0
+                db_average = 0.0
 
-        avg = float(total / count) if count else 0.0
+        avg = db_average if not step_minutes else (float(total / count) if count else 0.0)
         min_value = float(min(numeric_values)) if numeric_values else 0.0
         max_value = float(max(numeric_values)) if numeric_values else 0.0
 
         # Show Total/Average for production, energy, and consumption fields
         if field in ("production", "energy", "consomation", "consommation"):
-            # Pour la vue daily, on veut une moyenne horaire (Total / 24) comme demandé
-            # average = Sum / Count (points) est statistiquement vrai, mais l'utilisateur veut 'kWh/h'
-            hourly_avg = total / 24.0
-            stats_block = {"total": total, "average": hourly_avg, "count": count}
+            # L'utilisateur demande une moyenne basée sur le nombre de records (Avg DB)
+            stats_block = {"total": total, "average": avg, "count": count}
         else:
             stats_block = {
                 "min": min_value,

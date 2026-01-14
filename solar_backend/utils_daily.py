@@ -14,6 +14,7 @@ from django.db.models import (
     F,
     FloatField,
     Sum,
+    Avg,
     Value,
     When,
 )
@@ -56,9 +57,11 @@ def fetch_daily_points(model, fk_name: str, obj, field: str, start, end):
         output_field=CharField(),
     )
     numeric_expr = Cast(clean_value, FloatField())
+    
     aggregates = queryset.aggregate(
         total=Coalesce(Sum(numeric_expr), Value(0.0)),
         numeric_count=Count(numeric_expr),
+        db_average=Coalesce(Avg(numeric_expr), Value(0.0)),
     )
 
     data = []
@@ -74,8 +77,9 @@ def fetch_daily_points(model, fk_name: str, obj, field: str, start, end):
 
     total = float(aggregates.get("total", 0.0) or 0.0)
     numeric_count = int(aggregates.get("numeric_count") or 0)
+    db_average = float(aggregates.get("db_average", 0.0) or 0.0)
 
-    return data, {"total": total, "count": numeric_count}
+    return data, {"total": total, "count": numeric_count, "average": db_average}
 
 
 def group_points_by_step(
@@ -109,4 +113,3 @@ def group_points_by_step(
 
     grouped.sort(key=lambda item: item["timestamp"])
     return grouped
-

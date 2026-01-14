@@ -76,6 +76,9 @@ def send_websocket_notification(user_id, data_notif):
     """
     Envoie une notification via WebSocket à l'utilisateur.
     """
+    if not data_notif:
+        return
+
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         f"notification_{user_id}",
@@ -99,8 +102,11 @@ def  create_notification(request):
     serializer_data = create_or_replace_notification(user.id, fonction, message)
 
     # notification to socket
-    send_websocket_notification(user_id, serializer_data)
-    return Response(serializer_data, status=status.HTTP_200_OK)
+    if serializer_data:
+        send_websocket_notification(user_id, serializer_data)
+        return Response(serializer_data, status=status.HTTP_200_OK)
+    else:
+        return Response({"message": "Notification ignored (duplicate)"}, status=status.HTTP_200_OK)
     
     
 @swagger_auto_schema(
@@ -656,8 +662,10 @@ def message_from_IOT(request):
     message = request.data.get("message")
     
     data_notif = create_notification_serializer(user_id,name,message)
-    send_websocket_notification(user_id, data_notif)
-    return Response(data_notif, status=status.HTTP_200_OK)
+    if data_notif:
+        send_websocket_notification(user_id, data_notif)
+        return Response(data_notif, status=status.HTTP_200_OK)
+    return Response({"message": "Notification ignored"}, status=status.HTTP_200_OK)
 
 
 

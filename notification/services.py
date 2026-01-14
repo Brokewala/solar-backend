@@ -7,37 +7,37 @@ logger = logging.getLogger(__name__)
 
 def create_or_replace_notification(user_id, fonction, message):
     """
-    Creates a new notification for the user.
-    If a notification with the exact same 'fonction' and 'message' already exists for this user,
-    it removes the old one(s) and creates a fresh one (effectively updating the timestamp).
-    Ensures that only ONE notification of this specific type/content exists for the user.
+    Creates a new notification for the user ONLY if the message is different
+    from the last 3 notifications for the same 'fonction'.
     """
     if not user_id:
         return None
 
     try:
         with transaction.atomic():
-            # 1. Search for existing duplicates based on business key (user + fonction + message)
-            existing_notifs = Notification.objects.filter(
+            # 1. Get the last 3 notifications for this user and function
+            last_notifs = Notification.objects.filter(
                 user_id=user_id,
-                fonction=fonction,
-                message=message
-            )
-            
-            if existing_notifs.exists():
-                count = existing_notifs.count()
-                logger.info(f"Removing {count} duplicate notification(s) for user {user_id} - {fonction}")
-                existing_notifs.delete()
+                fonction=fonction
+            ).order_by('-createdAt')[:3]
 
-            # 2. Create the new notification
-            notif = Notification.objects.create(
+            # 2. Check if the new message exists in these last 3
+            # We compare the 'message' field.
+            for notif in last_notifs:
+                if notif.message == message:
+                    # Found a duplicate in the last 3 -> Ignore creation
+                    logger.info(f"Duplicate notification ignored for user {user_id} - {fonction}: {message}")
+                    return None
+
+            # 3. Create the new notification if no duplicate found
+            new_notif = Notification.objects.create(
                 user_id=user_id,
                 fonction=fonction,
                 message=message,
             )
             
-            # Return serialized data directly as it's often what's needed for sockets
-            return NotificationSerializer(notif, many=False).data
+            # Return serialized data directly
+            return NotificationSerializer(new_notif, many=False).data
             
     except Exception as e:
         logger.error(f"Error in create_or_replace_notification: {e}")

@@ -252,26 +252,26 @@ CORS_ALLOWED_ORIGINS = [
     "exp://sttlt3y-anonymous-8081.exp.direct",
     "http://localhost:8081",
     "http://192.168.x.x:8081",
-    "http://172.20.10.2:8000",
+    "http://192.168.88.51:8000",
     "http://192.168.1.178:8081",
 
 ]
 # Email configuration
 # EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
-# EMAIL_HOST = "smtp.gmail.com"
-# EMAIL_PORT = 587
-# EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
-# EMAIL_HOST_PASSWORD = "loxb wora pney rane"
-# EMAIL_USE_TLS = True
-# EMAIL_USE_SSL = False
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
+EMAIL_HOST_PASSWORD = "loxb wora pney rane"
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
 
 # ================
-EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
-ANYMAIL = {
-    "BREVO_API_KEY":os.getenv("BREVO_API_KEY") 
-}
-DEFAULT_FROM_EMAIL = 'solar smart system <rakotoarisoa.ga@gmail.com>'
-SERVER_EMAIL = "brokewala@gmail.com" 
+# EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+# ANYMAIL = {
+#     "BREVO_API_KEY":os.getenv("BREVO_API_KEY") 
+# }
+# DEFAULT_FROM_EMAIL = 'solar smart system <rakotoarisoa.ga@gmail.com>'
+# SERVER_EMAIL = "brokewala@gmail.com" 
 
 
 LOGGING = {

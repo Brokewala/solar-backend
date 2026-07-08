@@ -259,7 +259,7 @@ CORS_ALLOWED_ORIGINS = [
 # Email configuration
 # EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
+EMAIL_PORT = 465
 EMAIL_HOST_USER = "rakotoarisoa.ga@gmail.com"
 EMAIL_HOST_PASSWORD = "loxb wora pney rane"
 EMAIL_USE_TLS = True

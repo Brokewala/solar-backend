@@ -1,6 +1,5 @@
 from django.core.mail import EmailMessage
-
-# from django.core import mail
+from anymail.backends.brevo import EmailBackend as BrevoBackend
 
 
 # ==================Auto send email======================
@@ -14,4 +13,6 @@ class Util:
             to=[data["to_email"]],
         )
         email.content_subtype = "html"
+        # Force l'utilisation du backend HTTP de Brevo pour contourner le blocage réseau SMTP
+        email.connection = BrevoBackend()
         email.send()

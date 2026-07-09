@@ -14,5 +14,5 @@ class Util:
         )
         email.content_subtype = "html"
         # Force l'utilisation du backend HTTP de Brevo pour contourner le blocage réseau SMTP
-        # email.connection = BrevoBackend()
+        email.connection = BrevoBackend()
         email.send()
